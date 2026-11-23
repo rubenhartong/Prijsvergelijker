@@ -1,6 +1,7 @@
 import { ADMIN_HTML } from './admin';
 import { bewaarWaarneming, herberekenBenchmarks, samenvatting, type RuweWaarneming } from './db';
 import type { Env } from './env';
+import { cron, scrapeBatch } from './scrape';
 import { haalOp, jsonLd, ldProduct, metaPrijs, titel } from './fetcher';
 import { HttpError, json, sleutelOk, WINKELS } from './util';
 
@@ -163,6 +164,13 @@ async function route(req: Request, env: Env, ctx: ExecutionContext): Promise<Res
     }
   }
 
+  // ---- handmatig een cloud-batch draaien (zelfde regels als de cron: 1x per listing per dag)
+  if (p === '/api/scrape' && m === 'POST') {
+    const b = await body<{ listing_id?: number; max?: number }>(req).catch(() => ({}) as { listing_id?: number; max?: number });
+    const max = Math.min(Math.max(Number(b.max ?? 4), 1), 8);
+    return json(await scrapeBatch(env, { max, listingId: b.listing_id, bron: 'cloud-handmatig' }));
+  }
+
   if (p === '/api/summary' && m === 'GET') {
     return json(await samenvatting(env));
   }
@@ -181,5 +189,13 @@ export default {
       console.error(e);
       return json({ fout: 'interne fout', detail: msg }, 500);
     }
+  },
+  async scheduled(ctrl, env, ctx) {
+    ctx.waitUntil(
+      cron(env, new Date(ctrl.scheduledTime)).then(
+        (r) => console.log(JSON.stringify(r)),
+        (e) => console.error('cron mislukt', e),
+      ),
+    );
   },
 } satisfies ExportedHandler<Env>;
