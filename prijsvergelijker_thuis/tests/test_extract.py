@@ -89,3 +89,13 @@ def test_volgende_start():
 
 def test_picnic_id():
     assert product_id("https://picnic.app/nl/producten/s1163321") == "s1163321"
+
+
+def test_label_1_voor_is_geen_actie():
+    assert kies_label(["1 voor9.00", "2+2gratis"]) == "2+2gratis"
+
+
+def test_webshop_procent_zonder_normale_prijs_genegeerd():
+    doc = '<script type="application/ld+json">{"@type":"Product","offers":{"price":"17.99"}}</script>'
+    assert uit_pagina("bol", 200, doc, ["10% korting"]).actie_label is None
+    assert uit_pagina("etos", 200, doc, ["10% korting", "2e halve prijs"]).actie_label == "2e halve prijs"

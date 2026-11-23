@@ -124,15 +124,24 @@ ACTIE = re.compile(
 )
 
 
-def kies_label(kandidaten: list[str]) -> str | None:
-    """Eerste kandidaat-tekst (in documentvolgorde) die op een actie lijkt."""
+def kies_label(kandidaten: list[str], procent_toestaan: bool = True) -> str | None:
+    """Eerste kandidaat-tekst (in documentvolgorde) die op een actie lijkt.
+
+    - "1 voor €9,00" is een prijsweergave, geen actie -> overslaan.
+    - Een kale "z% korting" zonder normale prijs is op webshops al verwerkt in de getoonde
+      prijs; de Worker zou dan dubbel korting geven. Met procent_toestaan=False overslaan.
+    """
     for k in kandidaten:
         t = re.sub(r"\s+", " ", htmllib.unescape(k or "")).strip()
         if not t or len(t) > 120:
             continue
-        m = ACTIE.search(t)
-        if m:
-            return m.group(1).strip()
+        for m in ACTIE.finditer(t):
+            lab = m.group(1).strip()
+            if re.match(r"1\s*(?:stuks\s*)?voor", lab, re.I):
+                continue
+            if not procent_toestaan and re.fullmatch(r"\d+\s*%\s*korting", lab, re.I):
+                continue
+            return lab
     return None
 
 
@@ -162,7 +171,9 @@ def generiek(doc: str, label_kandidaten: list[str] | None = None, winkel: str = 
     p = p or meta_prijs(doc)
     if not p:
         raise Mislukt(f"{winkel}: geen prijs in JSON-LD/meta · titel '{titel(doc)}'")
-    return Waarneming(prijs=p, actie_label=kies_label(label_kandidaten or []))
+    # De JSON-LD-prijs is de prijs die je nu betaalt; we kennen geen normale prijs, dus een
+    # kale "% korting" zit er al in (zie kies_label).
+    return Waarneming(prijs=p, actie_label=kies_label(label_kandidaten or [], procent_toestaan=False))
 
 
 def uit_pagina(winkel: str, status: int | None, doc: str, label_kandidaten: list[str] | None = None) -> Waarneming:
