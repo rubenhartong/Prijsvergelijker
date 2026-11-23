@@ -2,7 +2,7 @@
 # (Jumbo/Amazon gecontroleerd vanuit de Worker op 2026-11-23; overige winkels geblokkeerd).
 # Hoeveelheid: doekje/tablet = aantal stuks per verpakking; ml = ml; liter = liter.
 CATS = [
-  (1, 'Babydoekjes op waterbasis', 'doekje', 0.018),
+  (1, 'Babydoekjes op waterbasis (Huggies Pure)', 'doekje', 0.018),
   (2, 'Vaatwastabletten Finish Ultimate (Plus) / Dreft Platinum (Plus)', 'tablet', None),
   (3, 'Sensodyne tandpasta', 'ml', None),
   (4, 'Taft Power Styling Wax hold 5 (75 ml)', 'ml', None),
@@ -154,6 +154,8 @@ L = [
  (5,'plus','Slimpie','Slimpie limonadesiroop aardbei 650 ml',PL+'slimpie-limonadesiroop-aardbei-fles-650-ml-649828',0.65),
 ]
 CLOUD = {'jumbo', 'amazon'}  # zie VERKENNING.md
+# Keuze gebruiker (2026-11-23): bij babydoekjes alleen Huggies; de rest blijft bewaard maar inactief.
+def actief(cid, merk): return 0 if cid == 1 and merk != 'Huggies' else 1
 q = lambda s: "'" + str(s).replace("'", "''") + "'"
 out = ['-- GEGENEREERD door seed/listings.py; niet met de hand bewerken.', 'DELETE FROM price_observation; DELETE FROM listing; DELETE FROM category; DELETE FROM sqlite_sequence;']
 for cid, naam, e, b in CATS:
@@ -161,7 +163,7 @@ for cid, naam, e, b in CATS:
 seen = set()
 for cid, w, merk, naam, url, n in L:
     assert url not in seen, url; seen.add(url)
-    out.append(f"INSERT INTO listing (category_id, winkel, merk, productnaam, url, stuks_per_verpakking, scrape_methode) VALUES ({cid}, {q(w)}, {q(merk)}, {q(naam)}, {q(url)}, {n}, {q('cloud' if w in CLOUD else 'thuis')});")
+    out.append(f"INSERT INTO listing (category_id, winkel, merk, productnaam, url, stuks_per_verpakking, scrape_methode, actief) VALUES ({cid}, {q(w)}, {q(merk)}, {q(naam)}, {q(url)}, {n}, {q('cloud' if w in CLOUD else 'thuis')}, {actief(cid, merk)});")
 # benchmark-listing: Huggies Pure 18x56 op Amazon
 out.append("UPDATE category SET benchmark_listing_id = (SELECT id FROM listing WHERE url = 'https://www.amazon.nl/dp/B0111AIZ68') WHERE id = 1;")
 open('seed/seed.sql', 'w').write('\n'.join(out) + '\n')

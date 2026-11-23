@@ -97,18 +97,18 @@ export async function bewaarWaarneming(env: Env, w: RuweWaarneming, bron: string
   return { listing_id: listing.id, datum, bron_ok: ok, ...(n ?? {}), foutmelding: fout };
 }
 
-/** Herbereken per categorie de benchmark: laagste prijs per eenheid van de laatste 90 dagen. */
+/** Herbereken per categorie de benchmark: laagste prijs per eenheid van de laatste 90 dagen (alleen actieve listings). */
 export async function herberekenBenchmarks(env: Env) {
   const van = new Date(Date.now() - 90 * 864e5).toISOString().slice(0, 10);
   await env.DB.prepare(
     `UPDATE category SET
        benchmark_prijs = COALESCE((
          SELECT o.prijs_per_eenheid FROM price_observation o JOIN listing l ON l.id = o.listing_id
-         WHERE l.category_id = category.id AND o.bron_ok = 1 AND o.datum >= ?1
+         WHERE l.category_id = category.id AND l.actief = 1 AND o.bron_ok = 1 AND o.datum >= ?1
          ORDER BY o.prijs_per_eenheid ASC LIMIT 1), benchmark_prijs),
        benchmark_listing_id = COALESCE((
          SELECT o.listing_id FROM price_observation o JOIN listing l ON l.id = o.listing_id
-         WHERE l.category_id = category.id AND o.bron_ok = 1 AND o.datum >= ?1
+         WHERE l.category_id = category.id AND l.actief = 1 AND o.bron_ok = 1 AND o.datum >= ?1
          ORDER BY o.prijs_per_eenheid ASC LIMIT 1), benchmark_listing_id)`,
   )
     .bind(van)
@@ -160,7 +160,7 @@ export async function samenvatting(env: Env) {
     await env.DB.prepare(
       `SELECT l.category_id, o.listing_id, l.winkel, l.merk, l.productnaam, l.url, o.datum, o.prijs_per_eenheid
        FROM price_observation o JOIN listing l ON l.id = o.listing_id
-       WHERE o.bron_ok = 1 AND o.datum >= ?1
+       WHERE o.bron_ok = 1 AND l.actief = 1 AND o.datum >= ?1
        ORDER BY o.prijs_per_eenheid ASC`,
     )
       .bind(van90)
