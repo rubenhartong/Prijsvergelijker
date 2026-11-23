@@ -1,0 +1,40 @@
+name: Prijsvergelijker thuis-scraper
+version: "0.1.0"
+slug: prijsvergelijker_thuis
+description: Haalt dagelijks prijzen op bij winkels die de cloud blokkeren (AH, Kruidvat, Etos, Action, HEMA, bol, Amazon, Picnic) en stuurt ze naar de Prijsvergelijker-Worker.
+url: https://github.com/rubenhartong/prijsvergelijker
+arch:
+  - aarch64
+  - amd64
+init: false
+startup: application
+boot: auto
+options:
+  api_url: https://prijsvergelijker.overtime-web.workers.dev
+  api_key: ""
+  tijd: "06:30"
+  direct_bij_start: false
+  pauze_seconden: 8
+  winkels:
+    - ah
+    - kruidvat
+    - etos
+    - action
+    - hema
+    - bol
+    - amazon
+    - picnic
+  picnic_email: ""
+  picnic_password: ""
+  picnic_2fa_code: ""
+schema:
+  api_url: url
+  api_key: password
+  tijd: match(^([01]\d|2[0-3]):[0-5]\d$)
+  direct_bij_start: bool
+  pauze_seconden: int(2,120)
+  winkels:
+    - list(ah|kruidvat|etos|action|hema|bol|amazon|picnic|jumbo|plus)
+  picnic_email: str?
+  picnic_password: password?
+  picnic_2fa_code: str?

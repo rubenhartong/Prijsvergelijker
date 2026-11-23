@@ -70,3 +70,8 @@ npx wrangler secret put API_KEY
 npm run db:migrate
 python3 seed/listings.py && npm run db:seed   # LET OP: wist alle data en zet de seed opnieuw
 ```
+
+## Thuis-scraper (Home Assistant-add-on)
+Map `prijsvergelijker_thuis/` en `repository.yaml` vormen een add-on-repository. Voeg in
+Home Assistant de repo-URL toe als add-on-repository. Zie `prijsvergelijker_thuis/DOCS.md`.
+Tests: `python3 -m pytest prijsvergelijker_thuis/tests`.
