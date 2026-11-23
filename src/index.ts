@@ -1,6 +1,7 @@
 import { ADMIN_HTML } from './admin';
 import { bewaarWaarneming, herberekenBenchmarks, samenvatting, type RuweWaarneming } from './db';
 import type { Env } from './env';
+import { haalOp, jsonLd, ldProduct, metaPrijs, titel } from './fetcher';
 import { HttpError, json, sleutelOk, WINKELS } from './util';
 
 const EENHEDEN = ['doekje', 'tablet', 'ml', 'liter'];
@@ -127,6 +128,39 @@ async function route(req: Request, env: Env, ctx: ExecutionContext): Promise<Res
 
   if (p === '/api/runs' && m === 'GET') {
     return json((await env.DB.prepare('SELECT * FROM scrape_run ORDER BY id DESC LIMIT 50').all()).results);
+  }
+
+  // ---- verkenning (stap 2): haal één pagina op vanuit de Worker en vat samen
+  if (p === '/api/probe' && m === 'POST') {
+    const b = await body<{ url?: string; method?: string; headers?: Record<string, string>; body?: string; raw?: number; zoek?: string }>(req);
+    eis(typeof b.url === 'string' && /^https:\/\//.test(b.url), 'url (https) is verplicht');
+    try {
+      const r = await haalOp(b.url, { method: b.method ?? 'GET', headers: b.headers, body: b.body });
+      const ld = jsonLd(r.text);
+      const treffers: string[] = [];
+      if (b.zoek) {
+        let i = -1;
+        while ((i = r.text.indexOf(b.zoek, i + 1)) >= 0 && treffers.length < 10) treffers.push(r.text.slice(Math.max(0, i - 200), i + 300));
+      }
+      return json({
+        status: r.status,
+        url: r.url,
+        content_type: r.contentType,
+        bytes: r.text.length,
+        ms: r.ms,
+        titel: titel(r.text),
+        jsonld_blokken: ld.length,
+        jsonld_types: ld.map((x) => (Array.isArray(x) ? 'array' : (x as Record<string, unknown>)['@type'] ?? 'graph')),
+        jsonld_product: ldProduct(r.text),
+        meta_prijs: metaPrijs(r.text),
+        next_data: r.text.includes('__NEXT_DATA__'),
+        nuxt: r.text.includes('__NUXT__'),
+        treffers,
+        begin: b.raw ? r.text.slice(0, Math.min(b.raw, 3000000)) : r.text.slice(0, 300),
+      });
+    } catch (e) {
+      return json({ fout: e instanceof Error ? e.message : String(e) }, 502);
+    }
   }
 
   if (p === '/api/summary' && m === 'GET') {
