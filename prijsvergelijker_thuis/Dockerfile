@@ -1,6 +1,6 @@
 # Vaste Debian-basis: Playwright/Chromium heeft glibc nodig. De Supervisor geeft zelf een
 # Alpine-image mee via BUILD_FROM; die gebruiken we daarom bewust niet.
-FROM python:3.12-slim-bookworm
+FROM python:3.13-slim-bookworm
 
 ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
