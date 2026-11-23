@@ -1,0 +1,16 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "prijsvergelijker",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-01",
+  "observability": { "enabled": true },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "prijsvergelijker",
+      "database_id": "83e9f6cc-643b-49ae-ae91-2ef856fd1c49",
+      "migrations_dir": "migrations"
+    }
+  ]
+  // Secret (niet in dit bestand): API_KEY  ->  npx wrangler secret put API_KEY
+}
