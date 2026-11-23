@@ -61,6 +61,7 @@ def ronde(opt: dict) -> None:
 
     browser = None
     picnic = None
+    ah = None
     picnic_fout = None
     buffer: list[dict] = []
     stats = defaultdict(lambda: [0, 0])
@@ -83,6 +84,12 @@ def ronde(opt: dict) -> None:
                     if picnic_fout:
                         raise Mislukt(picnic_fout)
                     r = picnic.haal(l["url"])
+                elif w == "ah":
+                    if ah is None:
+                        from ah_bron import AhBron
+
+                        ah = AhBron()
+                    r = ah.haal(l["url"])
                 else:
                     if browser is None:
                         from browser import Browser_

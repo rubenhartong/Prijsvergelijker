@@ -99,3 +99,18 @@ def test_webshop_procent_zonder_normale_prijs_genegeerd():
     doc = '<script type="application/ld+json">{"@type":"Product","offers":{"price":"17.99"}}</script>'
     assert uit_pagina("bol", 200, doc, ["10% korting"]).actie_label is None
     assert uit_pagina("etos", 200, doc, ["10% korting", "2e halve prijs"]).actie_label == "2e halve prijs"
+
+
+def test_ah_mapping():
+    from ah_bron import ah_id, naar_waarneming
+
+    assert ah_id("https://www.ah.nl/producten/product/wi500280/aardbei-siroop-0-suiker") == 500280
+    prod = {"priceV2": {"now": {"amount": 2.79}, "was": {"amount": 3.49},
+                        "discount": {"description": "25% korting", "availability": {"startDate": "2026-11-20", "endDate": "2026-11-26"}}}}
+    r = naar_waarneming(prod, "2026-11-23")
+    assert (r.prijs, r.normale_prijs, r.actie_label) == (2.79, 3.49, "25% korting")
+    assert naar_waarneming(prod, "2026-12-01").actie_label is None
+    r = naar_waarneming({"priceV2": {"now": {"amount": 9.99}, "discount": {"description": "1+1 gratis"}}}, "2026-11-23")
+    assert (r.prijs, r.normale_prijs, r.actie_label) == (9.99, None, "1+1 gratis")
+    with pytest.raises(Mislukt):
+        naar_waarneming({"priceV2": {"now": None}}, "2026-11-23")
