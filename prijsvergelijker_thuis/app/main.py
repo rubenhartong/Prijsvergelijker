@@ -98,10 +98,14 @@ def ronde(opt: dict) -> None:
                 obs = {"listing_id": l["id"], "datum": dag, "bron_ok": False, "foutmelding": msg[:300]}
                 stats[w][1] += 1
                 log.warning("✗ #%s %s %s: %s", l["id"], w, l["productnaam"], msg)
+            # Direct versturen: bij een herstart/update gaat dan niets verloren en wordt een
+            # listing niet opnieuw opgehaald (max 1 verzoek per listing per dag).
             buffer.append(obs)
-            if len(buffer) >= 10:
+            try:
                 api.stuur(buffer)
                 buffer = []
+            except Exception:
+                log.exception("Versturen mislukt; probeer het later in deze ronde opnieuw")
     finally:
         try:
             api.stuur(buffer)
