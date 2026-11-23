@@ -114,3 +114,13 @@ def test_ah_mapping():
     assert (r.prijs, r.normale_prijs, r.actie_label) == (9.99, None, "1+1 gratis")
     with pytest.raises(Mislukt):
         naar_waarneming({"priceV2": {"now": None}}, "2026-11-23")
+
+
+def test_kruidvat_occ_mapping():
+    from kruidvat_bron import kv_code, naar_waarneming
+
+    assert kv_code("https://www.kruidvat.nl/taft-hold-5-power-styling-wax/p/5374818") == "5374818"
+    r = naar_waarneming({"price": {"value": 5.49}, "potentialPromotions": [{"description": "1+1 gratis"}]})
+    assert (r.prijs, r.actie_label) == (5.49, "1+1 gratis")
+    with pytest.raises(Mislukt):
+        naar_waarneming({"name": "x"})

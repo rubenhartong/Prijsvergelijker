@@ -62,6 +62,7 @@ def ronde(opt: dict) -> None:
     browser = None
     picnic = None
     ah = None
+    kv = None
     picnic_fout = None
     buffer: list[dict] = []
     stats = defaultdict(lambda: [0, 0])
@@ -90,6 +91,12 @@ def ronde(opt: dict) -> None:
 
                         ah = AhBron()
                     r = ah.haal(l["url"])
+                elif w == "kruidvat":
+                    if kv is None:
+                        from kruidvat_bron import KruidvatBron
+
+                        kv = KruidvatBron()
+                    r = kv.haal(l["url"])
                 else:
                     if browser is None:
                         from browser import Browser_
