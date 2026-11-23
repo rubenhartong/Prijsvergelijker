@@ -155,7 +155,9 @@ L = [
 ]
 CLOUD = {'jumbo', 'amazon', 'plus'}  # zie VERKENNING.md
 # Keuze gebruiker (2026-11-23): bij babydoekjes alleen Huggies; de rest blijft bewaard maar inactief.
-def actief(cid, merk): return 0 if cid == 1 and merk != 'Huggies' else 1
+# bol-multipacks waarvan de pagina een andere variant/prijs toont (2026-11-23) -> uit.
+BOL_UIT = {'9300000169515099', '9300000026201688'}
+def actief(cid, merk, url=''): return 0 if (cid == 1 and merk != 'Huggies') or any(x in url for x in BOL_UIT) else 1
 # Amazon-listings die vanuit Cloudflare geen buybox-prijs gaven (2026-11-23) -> thuis.
 AMAZON_THUIS = {'B007L3JHEO', 'B08MXT5VDK', 'B0D5LJ4N7D', 'B0BXLYKV5J', 'B09HV4V2NM', 'B0G3XCPQL2', 'B09FM5YWX5', 'B0CMR2R4CK', 'B08Y8SX5RR'}
 def methode(w, url): return 'cloud' if w in CLOUD and url.rsplit('/', 1)[1] not in AMAZON_THUIS else 'thuis'
@@ -166,7 +168,7 @@ for cid, naam, e, b in CATS:
 seen = set()
 for cid, w, merk, naam, url, n in L:
     assert url not in seen, url; seen.add(url)
-    out.append(f"INSERT INTO listing (category_id, winkel, merk, productnaam, url, stuks_per_verpakking, scrape_methode, actief) VALUES ({cid}, {q(w)}, {q(merk)}, {q(naam)}, {q(url)}, {n}, {q(methode(w, url))}, {actief(cid, merk)});")
+    out.append(f"INSERT INTO listing (category_id, winkel, merk, productnaam, url, stuks_per_verpakking, scrape_methode, actief) VALUES ({cid}, {q(w)}, {q(merk)}, {q(naam)}, {q(url)}, {n}, {q(methode(w, url))}, {actief(cid, merk, url)});")
 # benchmark-listing: Huggies Pure 18x56 op Amazon
 out.append("UPDATE category SET benchmark_listing_id = (SELECT id FROM listing WHERE url = 'https://www.amazon.nl/dp/B0111AIZ68') WHERE id = 1;")
 open('seed/seed.sql', 'w').write('\n'.join(out) + '\n')
