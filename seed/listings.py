@@ -3,7 +3,7 @@
 # Hoeveelheid: doekje/tablet = aantal stuks per verpakking; ml = ml; liter = liter.
 CATS = [
   (1, 'Babydoekjes op waterbasis (Huggies Pure)', 'doekje', 0.018),
-  (2, 'Vaatwastabletten Finish Ultimate (Plus) / Dreft Platinum (Plus)', 'tablet', None),
+  (2, 'Vaatwastabletten (goed beoordeeld: Finish Ultimate, Dreft Platinum, AH Power)', 'tablet', None),
   (3, 'Sensodyne tandpasta', 'ml', None),
   (4, 'Taft Power Styling Wax hold 5 (75 ml)', 'ml', None),
   (5, 'Slimpie siroop aardbei/sinaasappel', 'liter', None),
@@ -67,6 +67,10 @@ L = [
  (2,'ah','Finish','Finish Ultimate plus all in 1 18',AH+'wi550907/finish-ultimate-plus-all-in-1-vaatwastabletten',18),
  (2,'ah','Dreft','Dreft Platinum plus all in one 29',AH+'wi556438/dreft-platinum-plus-all-in-one',29),
  (2,'ah','Dreft','Dreft Platinum plus 6-pack 72',AH+'wi538460/dreft-platinum-plus-vaatwastabletten-6-pack',72),
+ # AH Power All in 1: "Beste van de Test" + "Beste Koop" bij Test-Aankoop (toegevoegd 2026-11-23)
+ (2,'ah','AH','AH Power all in 1 vaatwastabletten 40',AH+'wi232662/power-all-in-1-vaatwastabletten',40),
+ (2,'ah','AH','AH Power all in 1 vaatwastabletten 75',AH+'wi575836/power-all-in-1-vaatwastabletten',75),
+ (2,'ah','AH','AH Power all in 1 vaatwastab citroen 40',AH+'wi234096/ah-power-all-in-1-vaatwastab-citroen',40),
  (2,'jumbo','Finish','Finish Ultimate Regular 16',J+'finish-ultimate-regular-16-753142ZK',16),
  (2,'jumbo','Finish','Finish Ultimate Regular 27',J+'finish-ultimate-all-in-one-regular-vaatwastabletten-25-capsules-620022ZK',27),
  (2,'jumbo','Finish','Finish Ultimate Plus Regular 18',J+'finish-ultimate-plus-all-in-one-regular-vaatwastabletten-22-capsules-688540ZK',18),
