@@ -173,7 +173,14 @@ def generiek(doc: str, label_kandidaten: list[str] | None = None, winkel: str = 
         raise Mislukt(f"{winkel}: geen prijs in JSON-LD/meta · titel '{titel(doc)}'")
     # De JSON-LD-prijs is de prijs die je nu betaalt; we kennen geen normale prijs, dus een
     # kale "% korting" zit er al in (zie kies_label).
+    if winkel in GEEN_LABELS:
+        return Waarneming(prijs=p)
     return Waarneming(prijs=p, actie_label=kies_label(label_kandidaten or [], procent_toestaan=False))
+
+
+# Webshops waar de getoonde prijs de te betalen prijs is en labels op de pagina vaak bij andere
+# producten/aanbiedingen horen (bol: "2 + 4 gratis"-badges van andere producten).
+GEEN_LABELS = {"bol", "amazon"}
 
 
 def uit_pagina(winkel: str, status: int | None, doc: str, label_kandidaten: list[str] | None = None) -> Waarneming:

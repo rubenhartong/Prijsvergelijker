@@ -44,7 +44,7 @@ export const ADMIN_HTML = /* html */ `<!doctype html>
 <p id="zoekleeg" class="muted"></p>
 
 <h2>Samenvatting</h2>
-<div class="wrap"><table id="sum"><thead><tr><th>Categorie</th><th>Beste nu</th><th>Picnic nu</th><th>Benchmark (90 d)</th></tr></thead><tbody></tbody></table></div>
+<div class="wrap"><table id="sum"><thead><tr><th>Categorie</th><th>Beste nu</th><th>Picnic nu</th><th>Laagste 90 d</th><th>Gemiddeld 90 d</th></tr></thead><tbody></tbody></table></div>
 <p id="fail" class="bad"></p>
 
 <h2>Categorie toevoegen</h2>
@@ -101,8 +101,10 @@ async function load() {
       const d = c.eenheid === 'doekje' || c.eenheid === 'tablet' ? 4 : 2;
       return '<tr><td>' + esc(c.naam) + '<br><span class="muted">' + c.eenheid_label + '</span></td><td>' + cell(c.beste_nu, d) + '</td><td>' + cell(c.picnic_nu, d) +
         (c.picnic_vs_benchmark ? ' <span class="muted">(' + Math.round((c.picnic_vs_benchmark - 1) * 100) + '% t.o.v. benchmark)</span>' : '') +
-        '</td><td>' + eur(c.benchmark.prijs_per_eenheid, d) + ' <span class="muted">' + esc(c.benchmark.winkel || c.benchmark.bron || '') + '</span></td></tr>' +
-        ((c.folderacties || []).length ? '<tr><td></td><td colspan="3" class="fa">Folder: ' + c.folderacties.map(actieRegel).join('<br>') + '</td></tr>' : '');
+        '</td><td>' + eur(c.benchmark.prijs_per_eenheid, d) + ' <span class="muted">' + esc(c.benchmark.winkel || c.benchmark.bron || '') + '</span></td><td>' +
+        eur(c.gemiddelde_90d, d) + ' <span class="muted">(' + c.aantal_metingen_90d + ' metingen)</span>' +
+        (c.picnic_vs_gemiddelde ? '<br><span class="muted">Picnic ' + (c.picnic_vs_gemiddelde < 1 ? '' : '+') + Math.round((c.picnic_vs_gemiddelde - 1) * 100) + '% t.o.v. gem.</span>' : '') + '</td></tr>' +
+        ((c.folderacties || []).length ? '<tr><td></td><td colspan="4" class="fa">Folder: ' + c.folderacties.map(actieRegel).join('<br>') + '</td></tr>' : '');
     }).join('');
     $('#fail').textContent = sum.listings_3_dagen_fout.length ? '3 dagen op rij mislukt: ' + sum.listings_3_dagen_fout.map((l) => '#' + l.listing_id + ' ' + l.winkel + ' ' + l.productnaam).join('; ') : '';
     $('#lst tbody').innerHTML = lst.map((l) => '<tr><td>' + l.id + '</td><td>' + esc(cn[l.category_id]) + '</td><td>' + esc(l.winkel) + '</td><td>' + esc(l.merk) + ' – <a href="' + esc(l.url) + '" target="_blank" rel="noopener">' + esc(l.productnaam) + '</a></td><td>' + l.stuks_per_verpakking + '</td><td>' + l.scrape_methode + '</td><td>' +
@@ -130,6 +132,7 @@ async function zoekNu() {
       if (x.prijs != null) delen.push(eur(x.prijs, 2));
       if (x.actie_label) delen.push(esc(x.actie_label) + (x.min_aantal > 1 ? ' (bij ' + x.min_aantal + ': ' + eur(x.effectieve_prijs_totaal, 2) + ')' : ''));
       delen.push(x.datum ? esc(x.datum) : 'nog geen prijs' + (x.scrape_methode === 'thuis' ? ' (thuis)' : ''));
+      if (x.n_90d > 1) delen.push('90 d: gem. ' + eur(x.gem_90d, d) + ', laagste ' + eur(x.min_90d, d));
       html += '<div class="res"><div><div class="w">' + esc(x.winkel) + '</div><a href="' + esc(x.url) + '" target="_blank" rel="noopener">' + esc(naam) + '</a></div>' +
         '<div class="pe">' + (x.prijs_per_eenheid != null ? eur(x.prijs_per_eenheid, d) + '<div class="w">/' + EENH[x.eenheid] + '</div>' : '–') + '</div>' +
         '<div class="sub">' + delen.join(' · ') + '</div></div>';

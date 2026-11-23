@@ -197,6 +197,10 @@ export async function samenvatting(env: Env) {
       const picnic = mijn.find((o) => o.winkel === 'picnic') ?? null;
       const b90 = bench.find((o) => o.category_id === c.id) ?? null;
       const benchmarkPrijs = b90?.prijs_per_eenheid ?? c.benchmark_prijs;
+      const gem = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
+      const metingen90 = bench.filter((o) => o.category_id === c.id).map((o) => o.prijs_per_eenheid);
+      const gemiddelde90 = gem(metingen90);
+      const gemiddeldeNu = gem(mijn.map((o) => o.prijs_per_eenheid));
       const fmt = (o: ObsRij | null) =>
         o && {
           listing_id: o.listing_id,
@@ -221,8 +225,17 @@ export async function samenvatting(env: Env) {
         picnic_nu: fmt(picnic),
         // >1 betekent duurder dan de 90-dagen-benchmark
         picnic_vs_benchmark: picnic && benchmarkPrijs ? r4(picnic.prijs_per_eenheid / benchmarkPrijs, 3) : null,
+        // >1 betekent duurder dan gemiddeld (90 dagen)
+        picnic_vs_gemiddelde: picnic && gemiddelde90 ? r4(picnic.prijs_per_eenheid / gemiddelde90, 3) : null,
+        laagste_90d: r4(benchmarkPrijs, 5),
+        gemiddelde_90d: r4(gemiddelde90, 5),
+        gemiddelde_nu: r4(gemiddeldeNu, 5),
+        aantal_metingen_90d: metingen90.length,
         benchmark: {
           prijs_per_eenheid: r4(benchmarkPrijs, 5),
+          // ook hier, zodat bestaande HA-sensoren (attribuut 'benchmark') het meteen tonen
+          gemiddelde_90d: r4(gemiddelde90, 5),
+          gemiddelde_nu: r4(gemiddeldeNu, 5),
           bron: b90 ? 'laagste_90_dagen' : c.benchmark_prijs != null ? 'ingesteld' : null,
           listing_id: b90?.listing_id ?? c.benchmark_listing_id,
           winkel: b90?.winkel ?? null,
@@ -274,7 +287,13 @@ async function zoekMet(env: Env, woorden: string[], hooi: string) {
       `SELECT l.id AS listing_id, l.winkel, l.merk, l.productnaam, l.url, l.stuks_per_verpakking,
               l.scrape_methode, c.id AS category_id, c.naam AS categorie, c.eenheid,
               o.datum, o.prijs, o.normale_prijs, o.actie_label, o.min_aantal,
-              o.effectieve_prijs_totaal, o.prijs_per_eenheid
+              o.effectieve_prijs_totaal, o.prijs_per_eenheid,
+              (SELECT ROUND(AVG(h.prijs_per_eenheid), 5) FROM price_observation h
+                WHERE h.listing_id = l.id AND h.bron_ok = 1 AND h.datum >= date('now', '-90 day')) AS gem_90d,
+              (SELECT MIN(h.prijs_per_eenheid) FROM price_observation h
+                WHERE h.listing_id = l.id AND h.bron_ok = 1 AND h.datum >= date('now', '-90 day')) AS min_90d,
+              (SELECT COUNT(*) FROM price_observation h
+                WHERE h.listing_id = l.id AND h.bron_ok = 1 AND h.datum >= date('now', '-90 day')) AS n_90d
        FROM listing l JOIN category c ON c.id = l.category_id
        LEFT JOIN price_observation o ON o.listing_id = l.id AND o.bron_ok = 1
          AND o.datum = (SELECT MAX(datum) FROM price_observation WHERE listing_id = l.id AND bron_ok = 1)

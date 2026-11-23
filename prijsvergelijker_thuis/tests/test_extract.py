@@ -143,3 +143,8 @@ def test_folderz_links_en_match():
     assert geldigheid("Geldig van 23-11 t/m 29-11", date(2026, 11, 23)) == ("2026-11-23", "2026-11-29")
     assert geldigheid("geldig t/m 05-01-2027", date(2026, 12, 30)) == (None, "2027-01-05")
     assert geldigheid("t/m 3-1", date(2026, 12, 30)) == (None, "2027-01-03")
+
+
+def test_bol_negeert_labels():
+    doc = '<script type="application/ld+json">{"@type":"Product","offers":{"price":"77.99"}}</script>'
+    assert uit_pagina("bol", 200, doc, ["2 + 4 gratis"]).actie_label is None
