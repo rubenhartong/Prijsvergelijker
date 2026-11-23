@@ -26,3 +26,13 @@ class WorkerAPI:
         if r.status_code >= 400:
             log.error("Worker weigerde waarnemingen: %s %s", r.status_code, r.text[:300])
         r.raise_for_status()
+
+    def categorieen(self) -> list[dict]:
+        r = self.s.get(f"{self.basis}/api/categories", timeout=30)
+        r.raise_for_status()
+        return r.json()
+
+    def stuur_acties(self, acties: list[dict]) -> dict:
+        r = self.s.post(f"{self.basis}/api/acties", json={"acties": acties}, timeout=60)
+        r.raise_for_status()
+        return r.json()

@@ -24,6 +24,7 @@ export const ADMIN_HTML = /* html */ `<!doctype html>
   td.url { max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .muted { color:var(--muted); } .bad { color:var(--bad); }
   #msg { min-height:1.4em; }
+  td.fa { font-size:.85rem; border-bottom-style:dashed; }
   input { max-width:100%; } label.vol { flex:1 1 100%; } label.vol input { width:100%; }
   #zoek h3 { font-size:.85rem; color:var(--muted); font-weight:600; margin:1rem 0 .3rem; }
   .res { display:grid; grid-template-columns:1fr auto; gap:2px 12px; padding:.55rem 0; border-bottom:1px solid var(--line); }
@@ -84,6 +85,11 @@ const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':
 const eur = (n, d=3) => n == null ? '–' : '€' + Number(n).toFixed(d).replace('.', ',');
 const cell = (o, d) => o ? '<a href="' + esc(o.url) + '" target="_blank" rel="noopener">' + eur(o.prijs_per_eenheid, d) + '</a> <span class="muted">' + esc(o.winkel) + ' · ' + esc(o.merk) + (o.actie_label ? ' · ' + esc(o.actie_label) : '') + '</span>' : '<span class="muted">–</span>';
 let CATS = [];
+const datumKort = (d) => d ? d.slice(8, 10) + '-' + d.slice(5, 7) : '';
+const actieRegel = (a) => '<a href="' + esc(a.url) + '" target="_blank" rel="noopener">' + esc(a.winkel) + ': ' + esc(a.actie_label || 'actie') + '</a> <span class="muted">' + esc(a.titel) +
+  (a.prijs ? ' · ' + (a.prijs_was ? eur(a.prijs_was, 2) + ' → ' : '') + eur(a.prijs, 2) : '') +
+  (a.prijs_per_eenheid ? ' · <b>' + eur(a.prijs_per_eenheid, a.prijs_per_eenheid < 1 ? 4 : 2) + '</b>/eenheid' : '') +
+  (a.geldig_van && a.geldig_van > new Date().toISOString().slice(0, 10) ? ' · vanaf ' + datumKort(a.geldig_van) : '') + (a.geldig_tot ? ' · t/m ' + datumKort(a.geldig_tot) : '') + '</span>';
 async function load() {
   if (!KEY) { msg('Vul de API-sleutel in.'); return; }
   try {
@@ -95,7 +101,8 @@ async function load() {
       const d = c.eenheid === 'doekje' || c.eenheid === 'tablet' ? 4 : 2;
       return '<tr><td>' + esc(c.naam) + '<br><span class="muted">' + c.eenheid_label + '</span></td><td>' + cell(c.beste_nu, d) + '</td><td>' + cell(c.picnic_nu, d) +
         (c.picnic_vs_benchmark ? ' <span class="muted">(' + Math.round((c.picnic_vs_benchmark - 1) * 100) + '% t.o.v. benchmark)</span>' : '') +
-        '</td><td>' + eur(c.benchmark.prijs_per_eenheid, d) + ' <span class="muted">' + esc(c.benchmark.winkel || c.benchmark.bron || '') + '</span></td></tr>';
+        '</td><td>' + eur(c.benchmark.prijs_per_eenheid, d) + ' <span class="muted">' + esc(c.benchmark.winkel || c.benchmark.bron || '') + '</span></td></tr>' +
+        ((c.folderacties || []).length ? '<tr><td></td><td colspan="3" class="fa">Folder: ' + c.folderacties.map(actieRegel).join('<br>') + '</td></tr>' : '');
     }).join('');
     $('#fail').textContent = sum.listings_3_dagen_fout.length ? '3 dagen op rij mislukt: ' + sum.listings_3_dagen_fout.map((l) => '#' + l.listing_id + ' ' + l.winkel + ' ' + l.productnaam).join('; ') : '';
     $('#lst tbody').innerHTML = lst.map((l) => '<tr><td>' + l.id + '</td><td>' + esc(cn[l.category_id]) + '</td><td>' + esc(l.winkel) + '</td><td>' + esc(l.merk) + ' – <a href="' + esc(l.url) + '" target="_blank" rel="noopener">' + esc(l.productnaam) + '</a></td><td>' + l.stuks_per_verpakking + '</td><td>' + l.scrape_methode + '</td><td>' +
@@ -112,7 +119,8 @@ async function zoekNu() {
   try {
     const r = await api('/api/zoek?q=' + encodeURIComponent(q));
     const rows = r.resultaten;
-    $('#zoekleeg').textContent = rows.length ? '' : 'Niets gevonden in de gevolgde artikelen.';
+    const fa = r.folderacties || [];
+    $('#zoekleeg').textContent = rows.length || fa.length ? '' : 'Niets gevonden in de gevolgde artikelen.';
     let cat = null, html = '';
     for (const x of rows) {
       if (x.category_id !== cat) { cat = x.category_id; html += '<h3>' + esc(x.categorie) + '</h3>'; }
@@ -126,6 +134,7 @@ async function zoekNu() {
         '<div class="pe">' + (x.prijs_per_eenheid != null ? eur(x.prijs_per_eenheid, d) + '<div class="w">/' + EENH[x.eenheid] + '</div>' : '–') + '</div>' +
         '<div class="sub">' + delen.join(' · ') + '</div></div>';
     }
+    if (fa.length) html += '<h3>Folderacties (Kruidvat, Action)</h3>' + fa.map((a) => '<div class="res"><div class="sub" style="color:inherit">' + actieRegel(a) + '</div></div>').join('');
     $('#zoek').innerHTML = html;
   } catch (e) { msg('Fout: ' + e.message, true); }
 }

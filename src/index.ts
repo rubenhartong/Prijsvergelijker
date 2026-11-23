@@ -1,9 +1,9 @@
 import { ADMIN_HTML } from './admin';
-import { bewaarWaarneming, herberekenBenchmarks, samenvatting, zoek, type RuweWaarneming } from './db';
+import { bewaarActies, bewaarWaarneming, herberekenBenchmarks, lopendeActies, samenvatting, zoek, type FolderActieIn, type RuweWaarneming } from './db';
 import type { Env } from './env';
 import { cron, scrapeBatch } from './scrape';
 import { haalOp, jsonLd, ldProduct, metaPrijs, titel } from './fetcher';
-import { HttpError, json, sleutelOk, WINKELS } from './util';
+import { HttpError, json, nlNu, sleutelOk, WINKELS } from './util';
 
 const EENHEDEN = ['doekje', 'tablet', 'ml', 'liter'];
 
@@ -173,6 +173,17 @@ async function route(req: Request, env: Env, ctx: ExecutionContext): Promise<Res
 
   if (p === '/api/summary' && m === 'GET') {
     return json(await samenvatting(env));
+  }
+
+  // ---- folderacties (thuis-scraper via Folderz)
+  if (p === '/api/acties' && m === 'POST') {
+    const b = await body<{ acties?: FolderActieIn[] }>(req);
+    eis(Array.isArray(b.acties) && b.acties.length <= 500, 'acties: lijst (max 500)');
+    for (const a of b.acties) eis(typeof a.titel === 'string' && typeof a.url === 'string' && typeof a.winkel === 'string', 'winkel, titel en url verplicht');
+    return json(await bewaarActies(env, b.acties), 201);
+  }
+  if (p === '/api/acties' && m === 'GET') {
+    return json(await lopendeActies(env, nlNu().datum));
   }
 
   // ---- zoeken in gevolgde artikelen: per winkel de laatste geslaagde prijs

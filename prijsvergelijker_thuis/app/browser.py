@@ -72,8 +72,50 @@ class Browser_:
         finally:
             ctx.close()
 
+    # ---- gedeelde context (cookies blijven bewaard), bv. voor Folderz: de JavaScript-check
+    # wordt één keer door de browser uitgevoerd en daarna geldt het cookie voor de volgende pagina's.
+    _ctx = None
+
+    def _pagina(self, url: str):
+        if self._ctx is None:
+            self._ctx = self.browser.new_context(locale="nl-NL", timezone_id="Europe/Amsterdam", viewport={"width": 1366, "height": 900})
+        page = self._ctx.new_page()
+        resp = page.goto(url, wait_until="domcontentloaded", timeout=45000)
+        # Wacht tot de JS-check klaar is en de echte pagina geladen is (titel niet leeg).
+        try:
+            page.wait_for_function("document.title && document.title.length > 0", timeout=25000)
+        except Exception:
+            pass
+        try:
+            page.wait_for_load_state("networkidle", timeout=12000)
+        except Exception:
+            pass
+        return page, resp
+
+    def links(self, url: str, js: str) -> list[dict]:
+        page, _ = self._pagina(url)
+        try:
+            for _ in range(4):  # lazy loading: een paar keer scrollen
+                page.mouse.wheel(0, 2500)
+                page.wait_for_timeout(800)
+            return page.evaluate(js)
+        finally:
+            page.close()
+
+    def pagina_info(self, url: str, js: str) -> tuple[int | None, str, dict]:
+        page, resp = self._pagina(url)
+        try:
+            # na de JS-check is de eerste response de challenge (202); de status van de echte pagina
+            # is dan onbekend -> None
+            status = resp.status if resp and resp.status != 202 else None
+            return status, page.content(), page.evaluate(js)
+        finally:
+            page.close()
+
     def sluit(self):
         try:
+            if self._ctx is not None:
+                self._ctx.close()
             self.browser.close()
         finally:
             self._pw.stop()

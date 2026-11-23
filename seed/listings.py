@@ -8,6 +8,7 @@ CATS = [
   (4, 'Taft Power Styling Wax hold 5 (75 ml)', 'ml', None),
   (5, 'Slimpie siroop aardbei/sinaasappel', 'liter', None),
 ]
+TREF = {1: 'huggies', 2: 'finish,dreft', 3: 'sensodyne,proglasur', 4: 'taft', 5: 'slimpie'}
 PIC = 'https://picnic.app/nl/producten/'  # pseudo-URL: Picnic-product-id voor de thuis-scraper
 AH = 'https://www.ah.nl/producten/product/'
 J = 'https://www.jumbo.com/producten/'
@@ -157,14 +158,15 @@ CLOUD = {'jumbo', 'amazon', 'plus'}  # zie VERKENNING.md
 # Keuze gebruiker (2026-11-23): bij babydoekjes alleen Huggies; de rest blijft bewaard maar inactief.
 # bol-multipacks waarvan de pagina een andere variant/prijs toont (2026-11-23) -> uit.
 BOL_UIT = {'9300000169515099', '9300000026201688'}
-def actief(cid, merk, url=''): return 0 if (cid == 1 and merk != 'Huggies') or any(x in url for x in BOL_UIT) else 1
+# Kruidvat en Action blokkeren alles (ook thuis); hun acties komen via Folderz (folder_actie).
+def actief(cid, merk, url=''): return 0 if (cid == 1 and merk != 'Huggies') or any(x in url for x in BOL_UIT) or 'kruidvat.nl' in url or 'action.com' in url else 1
 # Amazon-listings die vanuit Cloudflare geen buybox-prijs gaven (2026-11-23) -> thuis.
 AMAZON_THUIS = {'B007L3JHEO', 'B08MXT5VDK', 'B0D5LJ4N7D', 'B0BXLYKV5J', 'B09HV4V2NM', 'B0G3XCPQL2', 'B09FM5YWX5', 'B0CMR2R4CK', 'B08Y8SX5RR'}
 def methode(w, url): return 'cloud' if w in CLOUD and url.rsplit('/', 1)[1] not in AMAZON_THUIS else 'thuis'
 q = lambda s: "'" + str(s).replace("'", "''") + "'"
-out = ['-- GEGENEREERD door seed/listings.py; niet met de hand bewerken.', 'DELETE FROM price_observation; DELETE FROM listing; DELETE FROM category; DELETE FROM sqlite_sequence;']
+out = ['-- GEGENEREERD door seed/listings.py; niet met de hand bewerken.', 'DELETE FROM folder_actie; DELETE FROM price_observation; DELETE FROM listing; DELETE FROM category; DELETE FROM sqlite_sequence;']
 for cid, naam, e, b in CATS:
-    out.append(f"INSERT INTO category (id, naam, eenheid, benchmark_prijs) VALUES ({cid}, {q(naam)}, {q(e)}, {'NULL' if b is None else b});")
+    out.append(f"INSERT INTO category (id, naam, eenheid, benchmark_prijs, trefwoorden) VALUES ({cid}, {q(naam)}, {q(e)}, {'NULL' if b is None else b}, {q(TREF[cid])});")
 seen = set()
 for cid, w, merk, naam, url, n in L:
     assert url not in seen, url; seen.add(url)

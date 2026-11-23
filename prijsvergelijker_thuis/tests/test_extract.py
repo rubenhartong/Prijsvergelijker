@@ -124,3 +124,22 @@ def test_kruidvat_occ_mapping():
     assert (r.prijs, r.actie_label) == (5.49, "1+1 gratis")
     with pytest.raises(Mislukt):
         naar_waarneming({"name": "x"})
+
+
+def test_folderz_links_en_match():
+    from folderz_bron import geldigheid, offer_links, past_bij
+
+    links = [
+        {"href": "https://www.folderz.nl/winkels/kruidvat/aanbiedingen/sensodyne-mondverzorging-aanbieding-67980445/", "tekst": "Sensodyne 1+1 gratis"},
+        {"href": "https://www.folderz.nl/winkels/kruidvat/aanbiedingen/sensodyne-mondverzorging-aanbieding-67980445/", "tekst": "dubbel"},
+        {"href": "https://www.folderz.nl/winkels/kruidvat/aanbiedingen/pampers-luiers-aanbieding-1/", "tekst": ""},
+        {"href": "https://www.folderz.nl/winkels/etos/aanbiedingen/x-aanbieding-2/", "tekst": "andere winkel"},
+        {"href": "https://www.folderz.nl/winkels/kruidvat/folders-aanbiedingen", "tekst": "overzicht"},
+    ]
+    o = offer_links(links, "kruidvat")
+    assert len(o) == 2
+    assert [past_bij(l, ["sensodyne", "taft"]) for l in o] == [True, False]
+    from datetime import date
+    assert geldigheid("Geldig van 23-11 t/m 29-11", date(2026, 11, 23)) == ("2026-11-23", "2026-11-29")
+    assert geldigheid("geldig t/m 05-01-2027", date(2026, 12, 30)) == (None, "2027-01-05")
+    assert geldigheid("t/m 3-1", date(2026, 12, 30)) == (None, "2027-01-03")

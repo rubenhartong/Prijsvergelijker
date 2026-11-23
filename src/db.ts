@@ -1,5 +1,5 @@
 import type { Env } from './env';
-import { normalize, type Eenheid } from './normalize';
+import { eenhedenIn, normalize, type Eenheid } from './normalize';
 import { HttpError, nlNu } from './util';
 
 export interface CategoryRow {
@@ -184,6 +184,7 @@ export async function samenvatting(env: Env) {
     ).all()
   ).results;
 
+  const acties = await lopendeActies(env, vandaag);
   const r4 = (n: number | null | undefined, d = 4) => (n == null ? null : Math.round(n * 10 ** d) / 10 ** d);
   const eenheidLabel = { doekje: 'per doekje', tablet: 'per tablet', ml: 'per 100 ml', liter: 'per liter' } as const;
 
@@ -230,6 +231,8 @@ export async function samenvatting(env: Env) {
           datum: b90?.datum ?? null,
         },
         aantal_listings_met_prijs: mijn.length,
+        // acties uit folders (Kruidvat/Action via Folderz): alleen label, geen prijs per eenheid
+        folderacties: acties.filter((a) => a.category_id === c.id).map(({ category_id, ...a }) => a),
       };
     }),
     listings_3_dagen_fout: falend,
@@ -257,7 +260,12 @@ export async function zoek(env: Env, q: string) {
   // Eerst alleen op merk/product/winkel; pas als dat niets oplevert ook op categorienaam
   // (anders vindt "dreft" ook alle Finish-producten via de categorie "... / Dreft ...").
   const zonder = await zoekMet(env, woorden, `lower(l.merk || ' ' || l.productnaam || ' ' || l.winkel)`);
-  return { q, resultaten: zonder.length ? zonder : await zoekMet(env, woorden, `lower(l.merk || ' ' || l.productnaam || ' ' || c.naam || ' ' || l.winkel)`) };
+  const resultaten = zonder.length ? zonder : await zoekMet(env, woorden, `lower(l.merk || ' ' || l.productnaam || ' ' || c.naam || ' ' || l.winkel)`);
+  const vandaag = nlNu().datum;
+  const acties = (await lopendeActies(env, vandaag)).filter((a) =>
+    woorden.every((w) => `${a.titel} ${a.winkel} ${a.actie_label ?? ''}`.toLowerCase().includes(w)),
+  );
+  return { q, resultaten, folderacties: acties };
 }
 
 async function zoekMet(env: Env, woorden: string[], hooi: string) {
@@ -278,4 +286,92 @@ async function zoekMet(env: Env, woorden: string[], hooi: string) {
       .all()
   ).results;
   return rows;
+}
+
+// ---------------------------------------------------------------- folderacties
+export interface FolderActieIn {
+  winkel: string;
+  titel: string;
+  actie_label?: string | null;
+  prijs?: number | null;
+  prijs_was?: number | null;
+  geldig_van?: string | null;
+  geldig_tot?: string | null;
+  url: string;
+}
+
+/** Koppel een titel aan een categorie via category.trefwoorden (heel woord, hoofdletterongevoelig). */
+export function koppelCategorie(titel: string, cats: { id: number; trefwoorden: string | null }[]): number | null {
+  const t = ` ${titel.toLowerCase().replace(/[^a-z0-9à-ÿ]+/g, ' ')} `;
+  for (const c of cats) {
+    for (const w of (c.trefwoorden ?? '').split(',').map((x) => x.trim().toLowerCase()).filter(Boolean)) {
+      if (t.includes(` ${w} `)) return c.id;
+    }
+  }
+  return null;
+}
+
+/**
+ * Hoeveelheid uit een foldertitel, in de eenheid van de categorie:
+ * "5 x 75 ml" -> 375 (ml), "650 ml" -> 0.65 (liter), "2 x 56 stuks" -> 112 (doekje/tablet).
+ */
+export function hoeveelheidUitTitel(titel: string, eenheid: Eenheid): number | null {
+  const t = titel.toLowerCase().replace(',', '.');
+  const m = t.match(/(?:(\d+)\s*[x×]\s*)?(\d+(?:\.\d+)?)\s*(ml|l|liter|stuks|st|tabletten|capsules|doekjes)\b/);
+  if (!m) return null;
+  const n = m[1] ? Number(m[1]) : 1;
+  const q = Number(m[2]);
+  const e = m[3];
+  if (eenheid === 'ml') return e === 'ml' ? n * q : e === 'l' || e === 'liter' ? n * q * 1000 : null;
+  if (eenheid === 'liter') return e === 'ml' ? (n * q) / 1000 : e === 'l' || e === 'liter' ? n * q : null;
+  return ['stuks', 'st', 'tabletten', 'capsules', 'doekjes'].includes(e) ? n * q : null;
+}
+
+const datumOk = (d: unknown) => (typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : null);
+
+export async function bewaarActies(env: Env, acties: FolderActieIn[]) {
+  const cats = (await env.DB.prepare('SELECT id, trefwoorden, eenheid FROM category').all<{ id: number; trefwoorden: string | null; eenheid: Eenheid }>()).results;
+  let gekoppeld = 0;
+  for (const a of acties) {
+    const cid = koppelCategorie(a.titel, cats);
+    if (!cid) continue; // alleen acties voor onze categorieën bewaren
+    gekoppeld++;
+    // Folderprijs is de prijs voor de hele actie zoals in de titel ("5 x 75 ml 2+3 GRATIS" -> € 8,58).
+    const eenheid = cats.find((c) => c.id === cid)!.eenheid;
+    let q = hoeveelheidUitTitel(a.titel, eenheid);
+    // Zonder "N x" in de titel geldt de folderprijs meestal voor het hele actiepakket.
+    if (q && !/\d+\s*[x×]\s*\d/i.test(a.titel)) {
+      const lab = (a.actie_label ?? a.titel).toLowerCase();
+      const plus = lab.match(/(\d+)\s*\+\s*(\d+)/);
+      const voor = lab.match(/(\d+)\s*voor/);
+      if (plus) q *= Number(plus[1]) + Number(plus[2]);
+      else if (voor && Number(voor[1]) > 1) q *= Number(voor[1]);
+    }
+    const ppe = a.prijs && q ? Math.round((a.prijs / eenhedenIn(q, eenheid)) * 1e5) / 1e5 : null;
+    await env.DB.prepare(
+      `INSERT INTO folder_actie (winkel, category_id, titel, actie_label, prijs, prijs_was, prijs_per_eenheid, geldig_van, geldig_tot, url)
+       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+       ON CONFLICT (url) DO UPDATE SET category_id = excluded.category_id, titel = excluded.titel,
+         actie_label = excluded.actie_label, prijs = excluded.prijs, prijs_was = excluded.prijs_was,
+         prijs_per_eenheid = excluded.prijs_per_eenheid, geldig_van = excluded.geldig_van,
+         geldig_tot = excluded.geldig_tot, laatst_gezien = datetime('now')`,
+    )
+      .bind(a.winkel, cid, a.titel.slice(0, 200), a.actie_label ?? null, a.prijs ?? null, a.prijs_was ?? null, ppe, datumOk(a.geldig_van), datumOk(a.geldig_tot), a.url)
+      .run();
+  }
+  return { ontvangen: acties.length, gekoppeld };
+}
+
+/** Lopende folderacties: niet verlopen en de afgelopen 14 dagen nog gezien. */
+export async function lopendeActies(env: Env, vandaag: string) {
+  return (
+    await env.DB.prepare(
+      `SELECT category_id, winkel, titel, actie_label, prijs, prijs_was, prijs_per_eenheid, geldig_van, geldig_tot, url
+       FROM folder_actie
+       WHERE (geldig_tot IS NULL OR geldig_tot >= ?1) AND laatst_gezien >= datetime('now', '-14 days')
+       ORDER BY category_id, winkel, geldig_tot`,
+    )
+      .bind(vandaag)
+      .all<{ category_id: number; winkel: string; titel: string; actie_label: string | null; prijs: number | null; prijs_was: number | null; prijs_per_eenheid: number | null; geldig_van: string | null; geldig_tot: string | null; url: string }>()
+  ).results;
 }

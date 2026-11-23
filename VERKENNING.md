@@ -91,3 +91,21 @@ POST /api/observations
 ```
 `datum` is optioneel (standaard: vandaag, NL-tijd). Per listing en dag is er één rij. Een
 mislukte waarneming overschrijft nooit een geslaagde van dezelfde dag.
+
+## Update 2026-11-23 (avond): thuis-scraper en folderacties
+Resultaten vanaf de thuisverbinding (HA-add-on):
+| Winkel | Route | Resultaat |
+|---|---|---|
+| AH | app-API (`api.ah.nl`, anoniem token, GraphQL `product(id)`) | ✅ prijs, was-prijs en bonusactie. Website en API zijn vanaf Cloudflare 403. |
+| Picnic | app-API met eigen account (`python-picnic-api2`, 2FA via sms) | ✅ |
+| bol, Etos | Chromium, JSON-LD | ✅ |
+| Kruidvat | browser én `api.kruidvat.nl` | ❌ 403 (Akamai), ook thuis |
+| Action | browser | ❌ Cloudflare-check, ook thuis |
+
+Kruidvat en Action lopen daarom via **folderacties** van Folderz.nl: per merk
+(`folderz.nl/aanbiedingen/<merk>`) de aanbiedingen van alle winkels. De add-on houdt die van
+`folder_winkels` (kruidvat, action) en leest per aanbieding titel, label, "Geldig: … t/m …" en
+de prijzen. Folderz heeft een JavaScript-check van AWS WAF (geen captcha), die een gewone
+browser uitvoert. De Worker koppelt de acties via `category.trefwoorden` en rekent de prijs per
+eenheid uit als de hoeveelheid uit de titel blijkt ("5 x 75 ml"). De Kruidvat- en
+Action-listings zelf staan inactief.

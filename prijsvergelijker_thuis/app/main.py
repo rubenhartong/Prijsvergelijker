@@ -51,9 +51,41 @@ def te_doen(listings: list[dict], winkels: list[str], dag: str) -> list[dict]:
     return [l for l in listings if l["winkel"] in winkels and l.get("laatste_datum") != dag]
 
 
+FOLDER_GEDAAN = os.environ.get("FOLDER_GEDAAN_BESTAND", "/data/folder_gedaan.txt")
+
+
+def folder_ronde(opt: dict, api: WorkerAPI, dag: str) -> None:
+    """Eén keer per dag de folderacties (Folderz) van bv. Kruidvat en Action ophalen."""
+    winkels = opt.get("folder_winkels", [])
+    if not winkels:
+        return
+    try:
+        if open(FOLDER_GEDAAN).read().strip() == dag:
+            return
+    except OSError:
+        pass
+    trefwoorden = sorted({w.strip().lower() for c in api.categorieen() for w in (c.get("trefwoorden") or "").split(",") if w.strip()})
+    from browser import Browser_
+    from folderz_bron import ronde as folderz
+
+    browser = Browser_()
+    try:
+        acties = folderz(browser, winkels, trefwoorden, max(2, int(opt.get("pauze_seconden", 8))))
+    finally:
+        browser.sluit()
+    res = api.stuur_acties(acties) if acties else {"ontvangen": 0, "gekoppeld": 0}
+    log.info("Folderacties: %s", res)
+    with open(FOLDER_GEDAAN, "w") as f:
+        f.write(dag)
+
+
 def ronde(opt: dict) -> None:
     api = WorkerAPI(opt["api_url"], opt["api_key"])
     dag = vandaag()
+    try:
+        folder_ronde(opt, api, dag)
+    except Exception:
+        log.exception("Folderacties mislukt")
     lijst = volgorde(te_doen(api.werklijst(), opt.get("winkels", []), dag))
     log.info("Ronde %s: %d listings te doen", dag, len(lijst))
     if not lijst:
