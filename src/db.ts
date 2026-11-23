@@ -366,7 +366,9 @@ export async function bewaarActies(env: Env, acties: FolderActieIn[]) {
       if (plus) q *= Number(plus[1]) + Number(plus[2]);
       else if (voor && Number(voor[1]) > 1) q *= Number(voor[1]);
     }
-    const ppe = a.prijs && q ? Math.round((a.prijs / eenhedenIn(q, eenheid)) * 1e5) / 1e5 : null;
+    // Alleen met een duidelijk actielabel: zonder label is vaak onduidelijk op welke variant/hoeveelheid
+    // de folderprijs slaat (bv. "Taft 3 x 150 ml" is spray, niet de wax van 75 ml).
+    const ppe = a.prijs && q && a.actie_label ? Math.round((a.prijs / eenhedenIn(q, eenheid)) * 1e5) / 1e5 : null;
     await env.DB.prepare(
       `INSERT INTO folder_actie (winkel, category_id, titel, actie_label, prijs, prijs_was, prijs_per_eenheid, geldig_van, geldig_tot, url)
        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
