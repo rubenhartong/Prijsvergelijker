@@ -117,10 +117,27 @@ def volgende_start(tijd: str, nu: datetime) -> datetime:
     return t if t > nu else t + timedelta(days=1)
 
 
+def picnic_inloggen(opt: dict) -> None:
+    """Bij het starten meteen inloggen bij Picnic, zodat een sms-code direct wordt aangevraagd
+    (of een ingevulde code direct wordt geverifieerd) en niet pas bij de volgende ronde."""
+    if "picnic" not in opt.get("winkels", []) or not opt.get("picnic_email"):
+        return
+    try:
+        from picnic_bron import PicnicBron
+
+        PicnicBron(opt.get("picnic_email", ""), opt.get("picnic_password", ""), opt.get("picnic_2fa_code", ""))
+        log.info("Picnic: ingelogd, token bewaard. picnic_2fa_code mag weer leeg.")
+    except Mislukt as e:
+        log.warning("%s", e)
+    except Exception:
+        log.exception("Picnic: inloggen mislukt")
+
+
 def main() -> None:
     opt = lees_opties()
     if not opt.get("api_key"):
         log.error("api_key ontbreekt in de add-on-opties")
+    picnic_inloggen(opt)
     if opt.get("direct_bij_start"):
         try:
             ronde(opt)
