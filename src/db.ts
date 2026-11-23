@@ -235,3 +235,47 @@ export async function samenvatting(env: Env) {
     listings_3_dagen_fout: falend,
   };
 }
+
+/** Zoekwoorden -> elk woord moet voorkomen in merk/product/categorie/winkel. */
+export function zoekwoorden(q: string): string[] {
+  return q
+    .toLowerCase()
+    .replace(/[%_]/g, ' ')
+    .split(/\s+/)
+    .map((w) => w.trim())
+    .filter((w) => w.length >= 2)
+    .slice(0, 6);
+}
+
+/**
+ * Zoek in gevolgde (actieve) listings. Per listing de laatste geslaagde waarneming;
+ * resultaten per categorie, goedkoopste prijs per eenheid eerst (zonder prijs onderaan).
+ */
+export async function zoek(env: Env, q: string) {
+  const woorden = zoekwoorden(q);
+  if (!woorden.length) return { q, resultaten: [] };
+  // Eerst alleen op merk/product/winkel; pas als dat niets oplevert ook op categorienaam
+  // (anders vindt "dreft" ook alle Finish-producten via de categorie "... / Dreft ...").
+  const zonder = await zoekMet(env, woorden, `lower(l.merk || ' ' || l.productnaam || ' ' || l.winkel)`);
+  return { q, resultaten: zonder.length ? zonder : await zoekMet(env, woorden, `lower(l.merk || ' ' || l.productnaam || ' ' || c.naam || ' ' || l.winkel)`) };
+}
+
+async function zoekMet(env: Env, woorden: string[], hooi: string) {
+  const rows = (
+    await env.DB.prepare(
+      `SELECT l.id AS listing_id, l.winkel, l.merk, l.productnaam, l.url, l.stuks_per_verpakking,
+              l.scrape_methode, c.id AS category_id, c.naam AS categorie, c.eenheid,
+              o.datum, o.prijs, o.normale_prijs, o.actie_label, o.min_aantal,
+              o.effectieve_prijs_totaal, o.prijs_per_eenheid
+       FROM listing l JOIN category c ON c.id = l.category_id
+       LEFT JOIN price_observation o ON o.listing_id = l.id AND o.bron_ok = 1
+         AND o.datum = (SELECT MAX(datum) FROM price_observation WHERE listing_id = l.id AND bron_ok = 1)
+       WHERE l.actief = 1 AND ${woorden.map((_, i) => `${hooi} LIKE ?${i + 1}`).join(' AND ')}
+       ORDER BY c.id, o.prijs_per_eenheid IS NULL, o.prijs_per_eenheid, l.winkel
+       LIMIT 100`,
+    )
+      .bind(...woorden.map((w) => `%${w}%`))
+      .all()
+  ).results;
+  return rows;
+}

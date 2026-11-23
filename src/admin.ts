@@ -24,11 +24,23 @@ export const ADMIN_HTML = /* html */ `<!doctype html>
   td.url { max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .muted { color:var(--muted); } .bad { color:var(--bad); }
   #msg { min-height:1.4em; }
+  input { max-width:100%; } label.vol { flex:1 1 100%; } label.vol input { width:100%; }
+  #zoek h3 { font-size:.85rem; color:var(--muted); font-weight:600; margin:1rem 0 .3rem; }
+  .res { display:grid; grid-template-columns:1fr auto; gap:2px 12px; padding:.55rem 0; border-bottom:1px solid var(--line); }
+  .res .pe { font-weight:700; text-align:right; white-space:nowrap; }
+  .res .w { text-transform:uppercase; font-size:.75rem; letter-spacing:.04em; color:var(--muted); }
+  .res .sub { grid-column:1 / -1; font-size:.85rem; color:var(--muted); }
+  .res a { overflow-wrap:anywhere; }
 </style>
 </head>
 <body>
 <h1>Prijsvergelijker</h1>
 <form id="keyform"><label>API-sleutel<input id="key" type="password" size="30" autocomplete="off"></label><button>Opslaan</button><span id="msg" class="muted"></span></form>
+
+<h2>Zoeken</h2>
+<form id="zoekform"><label class="vol">Artikel, merk of winkel<input id="q" type="search" placeholder="bv. sensodyne rapid, dreft, slimpie" autocomplete="off"></label></form>
+<div id="zoek"></div>
+<p id="zoekleeg" class="muted"></p>
 
 <h2>Samenvatting</h2>
 <div class="wrap"><table id="sum"><thead><tr><th>Categorie</th><th>Beste nu</th><th>Picnic nu</th><th>Benchmark (90 d)</th></tr></thead><tbody></tbody></table></div>
@@ -92,7 +104,34 @@ async function load() {
     msg('Geladen.');
   } catch (e) { msg('Fout: ' + e.message, true); }
 }
-$('#keyform').onsubmit = (e) => { e.preventDefault(); KEY = $('#key').value.trim(); try { localStorage.setItem('pv_key', KEY); } catch {} load(); };
+const EENH = { doekje: 'doekje', tablet: 'tablet', ml: '100 ml', liter: 'liter' };
+let zoekTimer;
+async function zoekNu() {
+  const q = $('#q').value.trim();
+  if (q.length < 2) { $('#zoek').innerHTML = ''; $('#zoekleeg').textContent = ''; return; }
+  try {
+    const r = await api('/api/zoek?q=' + encodeURIComponent(q));
+    const rows = r.resultaten;
+    $('#zoekleeg').textContent = rows.length ? '' : 'Niets gevonden in de gevolgde artikelen.';
+    let cat = null, html = '';
+    for (const x of rows) {
+      if (x.category_id !== cat) { cat = x.category_id; html += '<h3>' + esc(x.categorie) + '</h3>'; }
+      const d = x.eenheid === 'doekje' || x.eenheid === 'tablet' ? 4 : 2;
+      const naam = x.productnaam.toLowerCase().startsWith(x.merk.toLowerCase()) ? x.productnaam : x.merk + ' ' + x.productnaam;
+      const delen = [];
+      if (x.prijs != null) delen.push(eur(x.prijs, 2));
+      if (x.actie_label) delen.push(esc(x.actie_label) + (x.min_aantal > 1 ? ' (bij ' + x.min_aantal + ': ' + eur(x.effectieve_prijs_totaal, 2) + ')' : ''));
+      delen.push(x.datum ? esc(x.datum) : 'nog geen prijs' + (x.scrape_methode === 'thuis' ? ' (thuis)' : ''));
+      html += '<div class="res"><div><div class="w">' + esc(x.winkel) + '</div><a href="' + esc(x.url) + '" target="_blank" rel="noopener">' + esc(naam) + '</a></div>' +
+        '<div class="pe">' + (x.prijs_per_eenheid != null ? eur(x.prijs_per_eenheid, d) + '<div class="w">/' + EENH[x.eenheid] + '</div>' : '–') + '</div>' +
+        '<div class="sub">' + delen.join(' · ') + '</div></div>';
+    }
+    $('#zoek').innerHTML = html;
+  } catch (e) { msg('Fout: ' + e.message, true); }
+}
+$('#q').oninput = () => { clearTimeout(zoekTimer); zoekTimer = setTimeout(zoekNu, 250); };
+$('#zoekform').onsubmit = (e) => { e.preventDefault(); zoekNu(); };
+$('#keyform').onsubmit =(e) => { e.preventDefault(); KEY = $('#key').value.trim(); try { localStorage.setItem('pv_key', KEY); } catch {} load(); };
 const formJson = (f) => Object.fromEntries([...new FormData(f)].filter(([, v]) => v !== '').map(([k, v]) => [k, /^(category_id|stuks_per_verpakking|benchmark_prijs)$/.test(k) ? Number(v) : v]));
 $('#catform').onsubmit = async (e) => { e.preventDefault(); try { await api('/api/categories', { method: 'POST', body: JSON.stringify(formJson(e.target)) }); e.target.reset(); load(); } catch (x) { msg('Fout: ' + x.message, true); } };
 $('#lform').onsubmit = async (e) => { e.preventDefault(); try { await api('/api/listings', { method: 'POST', body: JSON.stringify(formJson(e.target)) }); e.target.reset(); load(); } catch (x) { msg('Fout: ' + x.message, true); } };

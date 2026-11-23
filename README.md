@@ -48,6 +48,7 @@ categorie. Na elke run wordt dit gecachet in `category.benchmark_prijs`/`benchma
 ## API (alles met `Authorization: Bearer <API_KEY>`)
 | | |
 |---|---|
+| `GET /api/zoek?q=` | zoeken in gevolgde artikelen: per winkel laatste prijs, actie, prijs per eenheid |
 | `GET /api/summary` | per categorie: beste prijs nu (winkel, URL), Picnic nu, benchmark, plus `listings_3_dagen_fout` |
 | `GET/POST /api/categories` | categorieën |
 | `GET/POST /api/listings`, `PATCH /api/listings/:id` | listings (`?scrape_methode=thuis&actief=1`, `?winkel=`) |

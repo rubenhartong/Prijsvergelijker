@@ -1,5 +1,5 @@
 import { ADMIN_HTML } from './admin';
-import { bewaarWaarneming, herberekenBenchmarks, samenvatting, type RuweWaarneming } from './db';
+import { bewaarWaarneming, herberekenBenchmarks, samenvatting, zoek, type RuweWaarneming } from './db';
 import type { Env } from './env';
 import { cron, scrapeBatch } from './scrape';
 import { haalOp, jsonLd, ldProduct, metaPrijs, titel } from './fetcher';
@@ -173,6 +173,11 @@ async function route(req: Request, env: Env, ctx: ExecutionContext): Promise<Res
 
   if (p === '/api/summary' && m === 'GET') {
     return json(await samenvatting(env));
+  }
+
+  // ---- zoeken in gevolgde artikelen: per winkel de laatste geslaagde prijs
+  if (p === '/api/zoek' && m === 'GET') {
+    return json(await zoek(env, url.searchParams.get('q') ?? ''));
   }
 
   throw new HttpError(404, 'niet gevonden');
