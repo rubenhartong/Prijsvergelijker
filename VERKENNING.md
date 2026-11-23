@@ -16,7 +16,7 @@ Wat geblokkeerd wordt, gaat naar de thuis-scraper (`scrape_methode = 'thuis'`).
 | Action | ❌ 403 "Just a moment..." (Cloudflare-challenge) | – | – | thuis |
 | HEMA | ❌ 403 "Verboden toegang" (homepage); productpagina gaf 500 | – | – | thuis |
 | bol | ❌ 403 | – | – | thuis |
-| Plus | ⚠️ 200, maar ~11 KB OutSystems-app-shell. Geen prijs, geen JSON-LD in de HTML. | De site haalt de data client-side op via een interne `screenservices`-API. Die is niet gebruikt (zie onder). | – | thuis |
+| **Plus** | ⚠️ HTML is een ~11 KB OutSystems-app-shell zonder prijs, maar de anonieme data-API van de site werkt ✅ | `DataActionGetProductDetailsAndAgeInfo` → `ProductOut.Overview.Price` | ✅ `DataActionGetPromotionOffer` → `Offer.DisplayInfo_Label`, bv. "2+3 GRATIS", "3 VOOR 9.99" | **cloud** (sinds 2026-11-23, met akkoord gebruiker) |
 | Picnic | ⚠️ picnic.app is een WordPress-marketingsite zonder productpagina's | Alleen via de ingelogde app-API (account nodig) | – | thuis |
 
 ## Details en valkuilen
@@ -47,12 +47,25 @@ Wat geblokkeerd wordt, gaat naar de thuis-scraper (`scrape_methode = 'thuis'`).
 - De pagina is groot (1,5 MB). Op het gratis plan (10 ms CPU per aanroep) is dat de reden
   voor kleine batches.
 
-### Plus (niet gedaan, mogelijk later)
-De Plus-site laadt productdata via OutSystems-`screenservices` (bv.
-`ECP_Product_CW/ProductDetails/PDPContent/DataActionGetProductDetailsAndAgeInfo`). Dat
-endpoint vraagt een `moduleVersion`, een `apiVersion` uit de JS-bundel en een CSRF-header
-die bij elke release kunnen wijzigen. Het is niet geprobeerd, omdat het buiten "een
-productpagina ophalen" valt. Wil je het toch, dan is het een kleine aparte parser. Tot die tijd gaat Plus via de thuis-scraper (Playwright).
+### Plus
+De productpagina is een OutSystems-app. De site haalt de data zelf op via twee anonieme
+`screenservices`-aanroepen; de parser (`src/parsers/plus.ts`) doet hetzelfde:
+1. `ECP_Product_CW/ProductDetails/PDPContent/DataActionGetProductDetailsAndAgeInfo`, met als
+   resultaat `ProductOut.Overview.Price`;
+2. `.../DataActionGetPromotionOffer`, met als resultaat `Offer` (`DisplayInfo_Label`,
+   `StartDate`/`EndDate`, `IsFreeDeliveryOffer`).
+
+- Dat zijn **2 verzoeken per listing**. Dat is een bewuste uitzondering op "1 per listing",
+  omdat prijs en actie apart worden opgehaald.
+- Nodig: `moduleVersion` (uit `/moduleservices/moduleversioninfo`), een `apiVersion` per
+  data-actie (uit de JS-bundel `ECP_Product_CW.ProductDetails.PDPContent.mvc.js`) en de
+  header `X-CSRFToken` met het publieke anonieme token uit `/scripts/OutSystems.js`.
+- Na een Plus-release meldt de API `hasApiVersionChanged`. De parser zoekt dan zelf de nieuwe
+  `apiVersion` op in de bundel en probeert het één keer opnieuw.
+- "Gratis bezorging bij €13" (`IsFreeDeliveryOffer`) is geen prijsactie en wordt genegeerd.
+  Een actie telt alleen binnen `StartDate`–`EndDate`.
+- Eerste run op 2026-11-23: alle 10 actieve Plus-listings gaven een prijs. Dreft "2+3 GRATIS"
+  kwam uit op €0,30 per tablet, Sensodyne "3 VOOR 9.99" op €4,44 per 100 ml.
 
 ### Picnic
 Picnic heeft geen publieke productpagina's. De listing-URL `https://picnic.app/nl/producten/<id>`

@@ -1,0 +1,18 @@
+{
+  "PromotionId": "",
+  "OfferId": "",
+  "StartDate": "1900-01-01",
+  "EndDate": "1900-01-01",
+  "IsFreeDeliveryOffer": false,
+  "DisplayInfo_Label": "",
+  "DisplayInfo_PromotionBasedLabel": "",
+  "IsSingleProduct": false,
+  "PriceOriginal_Product": "0.0",
+  "NewPrice": "0.0",
+  "Title": "",
+  "Example": "",
+  "Explanation": "",
+  "Variant": "",
+  "Package": "",
+  "LoyaltyInfoID": 0
+}

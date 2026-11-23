@@ -153,7 +153,7 @@ L = [
  (5,'jumbo','Slimpie','Slimpie sinaasappel siroop 650 ml',J+'slimpie-sinaasappel-siroop-650-ml-439988FLS',0.65),
  (5,'plus','Slimpie','Slimpie limonadesiroop aardbei 650 ml',PL+'slimpie-limonadesiroop-aardbei-fles-650-ml-649828',0.65),
 ]
-CLOUD = {'jumbo', 'amazon'}  # zie VERKENNING.md
+CLOUD = {'jumbo', 'amazon', 'plus'}  # zie VERKENNING.md
 # Keuze gebruiker (2026-11-23): bij babydoekjes alleen Huggies; de rest blijft bewaard maar inactief.
 def actief(cid, merk): return 0 if cid == 1 and merk != 'Huggies' else 1
 q = lambda s: "'" + str(s).replace("'", "''") + "'"

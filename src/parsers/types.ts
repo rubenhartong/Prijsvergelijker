@@ -13,6 +13,8 @@ export interface Parser {
   bronUrl?: (url: string) => string;
   extraHeaders?: Record<string, string>;
   parse: (page: PageResult) => Geparsed;
+  /** Optioneel: eigen ophaallogica (bv. een JSON-API) in plaats van fetch + parse. */
+  haal?: (listingUrl: string) => Promise<Geparsed>;
 }
 
 export class ParseFout extends Error {}

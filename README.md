@@ -14,7 +14,7 @@ src/index.ts        routes (API + invoerpagina) en cron-handler
 src/db.ts           opslaan van waarnemingen, benchmark, samenvatting
 src/normalize.ts    actielabel -> effectieve prijs per eenheid (unit tests in test/)
 src/scrape.ts       cloud-scraper: batches, sequentieel, 1 verzoek per listing per dag
-src/parsers/*.ts    één parser per winkel (jumbo, amazon actief; rest -> thuis)
+src/parsers/*.ts    één parser per winkel (jumbo, amazon, plus actief; rest -> thuis)
 src/fetcher.ts      fetch met browserheaders, JSON-LD/meta-helpers
 migrations/         D1-schema
 seed/listings.py    startcategorieën + listings -> seed/seed.sql

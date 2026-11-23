@@ -35,9 +35,13 @@ export async function scrapeListing(listing: ListingMetEenheid) {
   if (!parser) return { ok: false as const, fout: `geen parser voor winkel ${listing.winkel}` };
   const t0 = Date.now();
   try {
-    const url = parser.bronUrl ? parser.bronUrl(listing.url) : listing.url;
-    const page = await haalOp(url, { headers: parser.extraHeaders });
-    const g = parser.parse(page);
+    let g;
+    if (parser.haal) g = await parser.haal(listing.url);
+    else {
+      const url = parser.bronUrl ? parser.bronUrl(listing.url) : listing.url;
+      const page = await haalOp(url, { headers: parser.extraHeaders });
+      g = parser.parse(page);
+    }
     if (!g.prijs) return { ok: false as const, fout: 'geen prijs gevonden', ms: Date.now() - t0 };
     return { ok: true as const, ...g, ms: Date.now() - t0 };
   } catch (e) {
