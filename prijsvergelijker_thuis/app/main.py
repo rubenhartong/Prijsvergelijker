@@ -64,7 +64,12 @@ def folder_ronde(opt: dict, api: WorkerAPI, dag: str) -> None:
             return
     except OSError:
         pass
-    trefwoorden = sorted({w.strip().lower() for c in api.categorieen() for w in (c.get("trefwoorden") or "").split(",") if w.strip()})
+    # per categorie de eerste 2 trefwoorden als Folderz-pagina (drogisterij: alle, zoals voorheen)
+    trefwoorden = sorted({
+        w.strip().lower()
+        for c in api.categorieen()
+        for w in [x for x in (c.get("trefwoorden") or "").split(",") if x.strip()][: (99 if c.get("groep") != "huishouden" else 2)]
+    })
     from browser import Browser_
     from folderz_bron import ronde as folderz
 
@@ -79,9 +84,42 @@ def folder_ronde(opt: dict, api: WorkerAPI, dag: str) -> None:
         f.write(dag)
 
 
+ONTDEKT = os.environ.get("ONTDEKT_BESTAND", "/data/ontdekt.txt")
+
+
+def ontdek_ronde(opt: dict, api: WorkerAPI, dag: str) -> None:
+    """Als optie `ontdekken` aan staat: max 1x per dag Picnic en AH doorzoeken voor categorieën met zoektermen."""
+    if not opt.get("ontdekken"):
+        return
+    try:
+        if open(ONTDEKT).read().strip() == dag:
+            return
+    except OSError:
+        pass
+    from ah_bron import AhBron
+    from ontdekken import ronde as ontdek
+
+    picnic = None
+    try:
+        from picnic_bron import PicnicBron
+
+        picnic = PicnicBron(opt.get("picnic_email", ""), opt.get("picnic_password", ""), opt.get("picnic_2fa_code", ""))
+    except Exception as e:  # noqa: BLE001
+        log.warning("ontdekken zonder Picnic: %s", e)
+    cats = [c for c in api.categorieen() if c.get("zoektermen")]
+    n = ontdek(api, cats, picnic, AhBron(), max(2, int(opt.get("pauze_seconden", 8))))
+    log.info("Ontdekken klaar: %d kandidaten naar de Worker", n)
+    with open(ONTDEKT, "w") as f:
+        f.write(dag)
+
+
 def ronde(opt: dict) -> None:
     api = WorkerAPI(opt["api_url"], opt["api_key"])
     dag = vandaag()
+    try:
+        ontdek_ronde(opt, api, dag)
+    except Exception:
+        log.exception("Ontdekken mislukt")
     try:
         folder_ronde(opt, api, dag)
     except Exception:
@@ -142,17 +180,9 @@ def ronde(opt: dict) -> None:
 
                         browser = Browser_()
                     status, doc, labels = browser.haal(l["url"])
-                    if w == "jumbo":
-                        from extract import blokkade
-                        from jumbo_bron import jumbo
-
-                        reden = blokkade(status, doc)
-                        if reden:
-                            raise Mislukt(f"jumbo: {reden}")
-                        r = jumbo(doc, l["url"], browser.laatste_url)
-                    else:
-                        r = uit_pagina(w, status, doc, labels)
-                obs = {"listing_id": l["id"], "datum": dag, "prijs": r.prijs, "normale_prijs": r.normale_prijs, "actie_label": r.actie_label}
+                    r = uit_pagina(w, status, doc, labels)
+                obs = {"listing_id": l["id"], "datum": dag, "prijs": r.prijs, "normale_prijs": r.normale_prijs,
+                       "actie_label": r.actie_label, "verpakking_tekst": r.verpakking_tekst}
                 stats[w][0] += 1
                 log.info("✓ #%s %s %s: €%s %s", l["id"], w, l["productnaam"], r.prijs, r.actie_label or "")
             except Exception as e:  # noqa: BLE001 - elke fout wordt een mislukte waarneming

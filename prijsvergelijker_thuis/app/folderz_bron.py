@@ -144,7 +144,7 @@ def ronde(browser, winkels: list[str], trefwoorden: list[str], pauze: int) -> li
     gevonden: dict[str, dict] = {}
     for t in trefwoorden:
         try:
-            links = browser.links(MERK.format(t=t), JS_LINKS)
+            links = browser.links(MERK.format(t=t.replace(" ", "-")), JS_LINKS)
         except Exception as e:  # noqa: BLE001
             log.warning("folderz %s: merkpagina mislukt: %s", t, e)
             continue

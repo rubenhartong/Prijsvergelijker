@@ -51,7 +51,8 @@ def naar_waarneming(product: dict | None, vandaag: str) -> Waarneming:
     if d.get("description") and (not start or start <= vandaag) and (not eind or vandaag <= eind):
         label = d["description"].strip()
     normaal = float(was) if was and float(was) > float(nu) else None
-    return Waarneming(prijs=float(nu), normale_prijs=normaal, actie_label=label)
+    tekst = " ".join(x for x in (product.get("title"), product.get("salesUnitSize")) if x) or None
+    return Waarneming(prijs=float(nu), normale_prijs=normaal, actie_label=label, verpakking_tekst=tekst)
 
 
 class AhBron:

@@ -16,6 +16,8 @@ class Waarneming:
     prijs: float | None
     normale_prijs: float | None = None
     actie_label: str | None = None
+    # productnaam/hoeveelheid zoals getoond; de Worker leest hier bv. "38 wasbeurten" uit
+    verpakking_tekst: str | None = None
 
 
 class Mislukt(Exception):
@@ -158,7 +160,7 @@ def amazon(doc: str) -> Waarneming:
     if not p:
         raise Mislukt(f"Amazon: prijs onleesbaar: {tekst.strip()[:60]}")
     # 'besparing van x procent' is t.o.v. de mediaanprijs, geen actie.
-    return Waarneming(prijs=p)
+    return Waarneming(prijs=p, verpakking_tekst=titel(doc))
 
 
 NIET_LEVERBAAR = ("Discontinued", "OutOfStock", "SoldOut")
@@ -173,9 +175,10 @@ def generiek(doc: str, label_kandidaten: list[str] | None = None, winkel: str = 
         raise Mislukt(f"{winkel}: geen prijs in JSON-LD/meta · titel '{titel(doc)}'")
     # De JSON-LD-prijs is de prijs die je nu betaalt; we kennen geen normale prijs, dus een
     # kale "% korting" zit er al in (zie kies_label).
+    t = titel(doc)
     if winkel in GEEN_LABELS:
-        return Waarneming(prijs=p)
-    return Waarneming(prijs=p, actie_label=kies_label(label_kandidaten or [], procent_toestaan=False))
+        return Waarneming(prijs=p, verpakking_tekst=t)
+    return Waarneming(prijs=p, actie_label=kies_label(label_kandidaten or [], procent_toestaan=False), verpakking_tekst=t)
 
 
 # Webshops waar de getoonde prijs de te betalen prijs is en labels op de pagina vaak bij andere

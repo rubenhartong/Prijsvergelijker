@@ -95,4 +95,5 @@ class PicnicBron:
             t = text_of(node)
             if t:
                 teksten.append(t)
-        return Waarneming(prijs=prijs, normale_prijs=normaal, actie_label=kies_label(teksten))
+        tekst = " ".join(x for x in (art.name, art.unit_quantity) if x) or None
+        return Waarneming(prijs=prijs, normale_prijs=normaal, actie_label=kies_label(teksten), verpakking_tekst=tekst)

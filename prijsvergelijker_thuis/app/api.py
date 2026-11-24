@@ -36,3 +36,7 @@ class WorkerAPI:
         r = self.s.post(f"{self.basis}/api/acties", json={"acties": acties}, timeout=60)
         r.raise_for_status()
         return r.json()
+
+    def stuur_kandidaten(self, kandidaten: list[dict]) -> None:
+        r = self.s.post(f"{self.basis}/api/kandidaten", json={"kandidaten": kandidaten}, timeout=60)
+        r.raise_for_status()

@@ -90,4 +90,7 @@ class PlusBron:
             raise Mislukt("plus: geen SKU in url")
         details = self._roep("DataActionGetProductDetailsAndAgeInfo", sku)
         promo = self._roep("DataActionGetPromotionOffer", sku)
-        return naar_waarneming((details.get("ProductOut") or {}).get("Overview"), promo.get("Offer"), date.today().isoformat())
+        ov = (details.get("ProductOut") or {}).get("Overview") or {}
+        w = naar_waarneming(ov, promo.get("Offer"), date.today().isoformat())
+        w.verpakking_tekst = " ".join(x for x in (ov.get("Name"), ov.get("Subtitle")) if x) or None
+        return w

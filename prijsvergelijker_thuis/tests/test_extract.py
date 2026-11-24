@@ -150,18 +150,6 @@ def test_bol_negeert_labels():
     assert uit_pagina("bol", 200, doc, ["2 + 4 gratis"]).actie_label is None
 
 
-def test_jumbo_nuxt():
-    from jumbo_bron import jumbo, sku_uit_url
-
-    doc = lees("jumbo-dreft-676439ZK.html")
-    u = "https://www.jumbo.com/producten/dreft-platinum-plus-all-in-one-vaatwastabletten-anti-dofheidstechnologie-19-x-676439ZK"
-    assert sku_uit_url(u) == "676439ZK"
-    r = jumbo(doc, u)
-    assert (r.prijs, r.normale_prijs, r.actie_label) == (13.99, None, None)
-    r = jumbo(doc, "https://www.jumbo.com/producten/finish-ultimate-regular-16-753142ZK")
-    assert (r.prijs, r.actie_label) == (9.99, "1+1 gratis")
-
-
 def test_plus_mapping():
     import json
     from plus_bron import naar_waarneming, plus_sku
