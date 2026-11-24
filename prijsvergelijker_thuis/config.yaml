@@ -1,5 +1,5 @@
 name: Prijsvergelijker thuis-scraper
-version: "0.4.0"
+version: "0.4.1"
 slug: prijsvergelijker_thuis
 description: Haalt dagelijks prijzen op (AH, Plus, Picnic, Etos, bol, Amazon) en folderacties (Kruidvat, Action) en stuurt ze naar de Prijsvergelijker-Worker.
 url: https://github.com/rubenhartong/prijsvergelijker

@@ -12,7 +12,7 @@ log = logging.getLogger("ontdekken")
 MAX_PER_TERM = 15
 AH_ZOEK = """query Search($input: SearchProductsInput!) {
   searchProductsExperimental(input: $input) {
-    products { id title brand salesUnitSize webPath priceV2 { now { amount } } }
+    products { id title brand salesUnitSize webPath }
   }
 }"""
 
@@ -36,7 +36,7 @@ def ah_kandidaten(ah, cid: int, term: str) -> list[dict]:
     prods = (((j.get("data") or {}).get("searchProductsExperimental") or {}).get("products")) or []
     uit = []
     for p in prods[:MAX_PER_TERM]:
-        prijs = ((p.get("priceV2") or {}).get("now") or {}).get("amount")
+        prijs = None  # prijsveld wijkt af in de zoek-API; de prijs komt via de gewone AH-ronde
         uit.append({"category_id": cid, "winkel": "ah", "zoekterm": term, "extern_id": f"wi{p['id']}", "naam": p.get("title") or "",
                     "merk": p.get("brand"), "hoeveelheid": p.get("salesUnitSize"), "prijs": prijs,
                     "url": "https://www.ah.nl" + (p.get("webPath") or f"/producten/product/wi{p['id']}")})
