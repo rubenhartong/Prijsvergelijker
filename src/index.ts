@@ -1,11 +1,11 @@
 import { ADMIN_HTML } from './admin';
-import { bewaarActies, bewaarWaarneming, herberekenBenchmarks, lopendeActies, samenvatting, zoek, type FolderActieIn, type RuweWaarneming } from './db';
+import { bewaarActies, bewaarKandidaten, bewaarWaarneming, herbereken, huishouden, herberekenBenchmarks, lopendeActies, samenvatting, zoek, type FolderActieIn, type KandidaatIn, type RuweWaarneming } from './db';
+import { EENHEDEN } from './normalize';
 import type { Env } from './env';
 import { cron, scrapeBatch } from './scrape';
 import { haalOp, jsonLd, ldProduct, metaPrijs, titel } from './fetcher';
 import { HttpError, json, nlNu, sleutelOk, WINKELS } from './util';
 
-const EENHEDEN = ['doekje', 'tablet', 'ml', 'liter'];
 
 async function body<T = Record<string, unknown>>(req: Request): Promise<T> {
   try {
@@ -37,15 +37,28 @@ async function route(req: Request, env: Env, ctx: ExecutionContext): Promise<Res
     return json((await env.DB.prepare('SELECT * FROM category ORDER BY id').all()).results);
   }
   if (p === '/api/categories' && m === 'POST') {
-    const b = await body<{ naam?: string; eenheid?: string; benchmark_prijs?: number; benchmark_listing_id?: number }>(req);
+    const b = await body<{ naam?: string; eenheid?: string; groep?: string; benchmark_prijs?: number; trefwoorden?: string; zoektermen?: string; omschrijving?: string }>(req);
     eis(typeof b.naam === 'string' && b.naam.trim(), 'naam is verplicht');
-    eis(EENHEDEN.includes(b.eenheid ?? ''), `eenheid moet een van ${EENHEDEN.join(', ')} zijn`);
+    eis(EENHEDEN.includes((b.eenheid ?? '') as never), `eenheid moet een van ${EENHEDEN.join(', ')} zijn`);
+    eis(['drogisterij', 'huishouden'].includes(b.groep ?? 'drogisterij'), 'groep is drogisterij of huishouden');
     const r = await env.DB.prepare(
-      'INSERT INTO category (naam, eenheid, benchmark_prijs, benchmark_listing_id) VALUES (?, ?, ?, ?) RETURNING *',
+      'INSERT INTO category (naam, eenheid, groep, benchmark_prijs, trefwoorden, zoektermen, omschrijving) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING *',
     )
-      .bind(b.naam.trim(), b.eenheid, b.benchmark_prijs ?? null, b.benchmark_listing_id ?? null)
+      .bind(b.naam.trim(), b.eenheid, b.groep ?? 'drogisterij', b.benchmark_prijs ?? null, b.trefwoorden ?? null, b.zoektermen ?? null, b.omschrijving ?? null)
       .first();
     return json(r, 201);
+  }
+  let cm: RegExpMatchArray | null;
+  if ((cm = p.match(/^\/api\/categories\/(\d+)$/)) && m === 'PATCH') {
+    const b = await body<Record<string, unknown>>(req);
+    const velden = ['naam', 'eenheid', 'groep', 'trefwoorden', 'zoektermen', 'omschrijving'].filter((v) => v in b);
+    eis(velden.length, 'niets om te wijzigen');
+    if ('eenheid' in b) eis(EENHEDEN.includes(b.eenheid as never), 'ongeldige eenheid');
+    const r = await env.DB.prepare(`UPDATE category SET ${velden.map((v) => `${v} = ?`).join(', ')} WHERE id = ? RETURNING *`)
+      .bind(...velden.map((v) => b[v] as string), Number(cm[1]))
+      .first();
+    if (!r) throw new HttpError(404, 'categorie niet gevonden');
+    return json(r);
   }
 
   // ---- listings
@@ -96,6 +109,38 @@ async function route(req: Request, env: Env, ctx: ExecutionContext): Promise<Res
       .first();
     if (!r) throw new HttpError(404, 'listing niet gevonden');
     return json(r);
+  }
+
+  // ---- prijs voor één listing (handmatig, of thuis-scraper per listing)
+  if ((mm = p.match(/^\/api\/listings\/(\d+)\/prijs$/)) && m === 'POST') {
+    const b = await body<RuweWaarneming & { bron?: string }>(req);
+    eis(typeof b.prijs === 'number' && b.prijs > 0, 'prijs (> 0) is verplicht');
+    const bron = b.bron ?? 'handmatig';
+    eis(['thuis', 'handmatig'].includes(bron), 'bron is thuis of handmatig');
+    const r = await bewaarWaarneming(env, { ...b, listing_id: Number(mm[1]) }, bron);
+    ctx.waitUntil(herberekenBenchmarks(env));
+    return json(r, 201);
+  }
+
+  // ---- kandidaten: zoekresultaten van de thuis-scraper (Picnic/AH) om listings uit te kiezen
+  if (p === '/api/kandidaten' && m === 'POST') {
+    const b = await body<{ kandidaten?: KandidaatIn[] }>(req);
+    eis(Array.isArray(b.kandidaten) && b.kandidaten.length <= 1000, 'kandidaten: lijst (max 1000)');
+    return json(await bewaarKandidaten(env, b.kandidaten), 201);
+  }
+  if (p === '/api/kandidaten' && m === 'GET') {
+    const cid = url.searchParams.get('category_id');
+    return json((await env.DB.prepare('SELECT * FROM kandidaat WHERE (?1 IS NULL OR category_id = ?1) ORDER BY category_id, winkel, prijs').bind(cid ? Number(cid) : null).all()).results);
+  }
+
+  if (p === '/api/herbereken' && m === 'POST') {
+    return json(await herbereken(env));
+  }
+
+  // ---- huishouden: Picnic vs. beste (incl. Action-folder) en of een Action-ronde loont
+  if (p === '/api/huishouden' && m === 'GET') {
+    const d = Number(url.searchParams.get('drempel') ?? env.ACTION_DREMPEL ?? 5);
+    return json(await huishouden(env, Number.isFinite(d) ? d : 5));
   }
 
   // ---- waarnemingen (handmatig of thuis-scraper)

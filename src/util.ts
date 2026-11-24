@@ -1,4 +1,5 @@
-export const WINKELS = ['picnic', 'ah', 'jumbo', 'plus', 'kruidvat', 'etos', 'action', 'hema', 'bol', 'amazon'] as const;
+// Jumbo is bewust verwijderd (2026-11-24). Niet: Dirk, Trekpleister, DA.
+export const WINKELS = ['picnic', 'ah', 'plus', 'kruidvat', 'etos', 'action', 'hema', 'bol', 'amazon'] as const;
 export type Winkel = (typeof WINKELS)[number];
 
 /** Datum (YYYY-MM-DD) en uur in Europe/Amsterdam. */

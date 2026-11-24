@@ -43,6 +43,10 @@ export const ADMIN_HTML = /* html */ `<!doctype html>
 <div id="zoek"></div>
 <p id="zoekleeg" class="muted"></p>
 
+<h2>Huishouden: Picnic of Action?</h2>
+<p id="ronde" class="muted"></p>
+<div class="wrap"><table id="huis"><thead><tr><th>Artikel</th><th>Picnic</th><th>Beste</th><th>Besparing / verpakking</th></tr></thead><tbody></tbody></table></div>
+
 <h2>Samenvatting</h2>
 <div class="wrap"><table id="sum"><thead><tr><th>Categorie</th><th>Beste nu</th><th>Picnic nu</th><th>Laagste 90 d</th><th>Gemiddeld 90 d</th></tr></thead><tbody></tbody></table></div>
 <p id="fail" class="bad"></p>
@@ -50,7 +54,11 @@ export const ADMIN_HTML = /* html */ `<!doctype html>
 <h2>Categorie toevoegen</h2>
 <form id="catform">
   <label>Naam<input name="naam" required></label>
-  <label>Eenheid<select name="eenheid"><option>doekje</option><option>tablet</option><option value="ml">ml (per 100 ml)</option><option>liter</option></select></label>
+  <label>Eenheid<select name="eenheid">${['doekje','tablet','ml','liter','rol','wasbeurt','zak','meter','stuk'].map(e=>`<option value="${e}">${e === 'ml' ? 'ml (per 100 ml)' : e}</option>`).join('')}</select></label>
+  <label>Groep<select name="groep"><option>drogisterij</option><option>huishouden</option></select></label>
+  <label>Gelijkwaardig<input name="omschrijving" placeholder="bv. elk merk"></label>
+  <label>Trefwoorden (folders)<input name="trefwoorden" placeholder="komma-gescheiden"></label>
+  <label>Zoektermen (Picnic/AH)<input name="zoektermen" placeholder="komma-gescheiden"></label>
   <label>Benchmark €/eenheid<input name="benchmark_prijs" type="number" step="0.00001"></label>
   <button>Toevoegen</button>
 </form>
@@ -58,11 +66,11 @@ export const ADMIN_HTML = /* html */ `<!doctype html>
 <h2>Listing toevoegen</h2>
 <form id="lform">
   <label>Categorie<select name="category_id" id="catsel"></select></label>
-  <label>Winkel<select name="winkel">${['picnic','ah','jumbo','plus','kruidvat','etos','action','hema','bol','amazon'].map(w=>`<option>${w}</option>`).join('')}</select></label>
+  <label>Winkel<select name="winkel">${['picnic','ah','plus','kruidvat','etos','action','hema','bol','amazon'].map(w=>`<option>${w}</option>`).join('')}</select></label>
   <label>Merk<input name="merk" required></label>
   <label>Productnaam<input name="productnaam" required size="30"></label>
   <label>URL<input name="url" type="url" required size="40"></label>
-  <label>Hoeveelheid (stuks / ml / liter)<input name="stuks_per_verpakking" type="number" step="0.001" required></label>
+  <label>Eenheden per verpakking (stuks/ml/liter/rollen/wasbeurten/zakken/meter)<input name="stuks_per_verpakking" type="number" step="0.001" required></label>
   <label>Methode<select name="scrape_methode"><option>cloud</option><option>thuis</option></select></label>
   <button>Toevoegen</button>
 </form>
@@ -85,21 +93,28 @@ const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':
 const eur = (n, d=3) => n == null ? '–' : '€' + Number(n).toFixed(d).replace('.', ',');
 const cell = (o, d) => o ? '<a href="' + esc(o.url) + '" target="_blank" rel="noopener">' + eur(o.prijs_per_eenheid, d) + '</a> <span class="muted">' + esc(o.winkel) + ' · ' + esc(o.merk) + (o.actie_label ? ' · ' + esc(o.actie_label) : '') + '</span>' : '<span class="muted">–</span>';
 let CATS = [];
+const dec = (e) => e === 'ml' || e === 'liter' ? 2 : e === 'doekje' || e === 'tablet' ? 4 : 3;
 const datumKort = (d) => d ? d.slice(8, 10) + '-' + d.slice(5, 7) : '';
 const actieRegel = (a) => '<a href="' + esc(a.url) + '" target="_blank" rel="noopener">' + esc(a.winkel) + ': ' + esc(a.actie_label || 'actie') + '</a> <span class="muted">' + esc(a.titel) +
   (a.prijs ? ' · ' + (a.prijs_was ? eur(a.prijs_was, 2) + ' → ' : '') + eur(a.prijs, 2) : '') +
-  (a.prijs_per_eenheid ? ' · <b>' + eur(a.prijs_per_eenheid, a.prijs_per_eenheid < 1 ? 4 : 2) + '</b>/eenheid' : '') +
+  (a.prijs_per_eenheid ? ' · <b>' + eur(a.prijs_per_eenheid, a.prijs_per_eenheid < 1 ? 3 : 2) + '</b>/eenheid' : '') +
   (a.geldig_van && a.geldig_van > new Date().toISOString().slice(0, 10) ? ' · vanaf ' + datumKort(a.geldig_van) : '') + (a.geldig_tot ? ' · t/m ' + datumKort(a.geldig_tot) : '') + '</span>';
 async function load() {
   if (!KEY) { msg('Vul de API-sleutel in.'); return; }
   try {
-    const [cats, lst, sum] = await Promise.all([api('/api/categories'), api('/api/listings'), api('/api/summary')]);
+    const [cats, lst, sum, huis] = await Promise.all([api('/api/categories'), api('/api/listings'), api('/api/summary'), api('/api/huishouden')]);
+    const ar = huis.action_ronde;
+    $('#ronde').innerHTML = (ar.loont ? '<b>Action-ronde loont:</b> ' : 'Action-ronde loont (nog) niet: ') + eur(ar.besparing_totaal, 2) + ' besparing (drempel ' + eur(huis.drempel, 2) + ')' + (ar.artikelen.length ? ' · ' + ar.artikelen.map(esc).join(', ') : '');
+    const pp = (o, e) => o ? '<a href="' + esc(o.url) + '" target="_blank" rel="noopener">' + eur(o.prijs_per_eenheid, dec(e)) + '</a> <span class="muted">' + esc(o.winkel || '') + (o.prijs ? ' · ' + eur(o.prijs, 2) : '') + (o.actie_label ? ' · ' + esc(o.actie_label) : '') + (o.bron === 'folder' ? ' · folder' : '') + '</span>' : '<span class="muted">–</span>';
+    $('#huis tbody').innerHTML = huis.artikelen.map((a) => '<tr><td>' + esc(a.naam) + '<br><span class="muted">' + esc(a.eenheid_label) + (a.gelijkwaardig ? ' · ' + esc(a.gelijkwaardig) : '') + '</span></td><td>' + pp(a.picnic && { ...a.picnic, winkel: 'picnic' }, a.eenheid) + '</td><td>' + pp(a.beste, a.eenheid) + '</td><td>' + (a.besparing_per_verpakking ? eur(a.besparing_per_verpakking, 2) : '<span class="muted">–</span>') + '</td></tr>').join('');
     CATS = cats;
     $('#catsel').innerHTML = cats.map((c) => '<option value="' + c.id + '">' + esc(c.naam) + '</option>').join('');
     const cn = Object.fromEntries(cats.map((c) => [c.id, c.naam]));
+    let groepNu = null;
     $('#sum tbody').innerHTML = sum.categorieen.map((c) => {
-      const d = c.eenheid === 'doekje' || c.eenheid === 'tablet' ? 4 : 2;
-      return '<tr><td>' + esc(c.naam) + '<br><span class="muted">' + c.eenheid_label + '</span></td><td>' + cell(c.beste_nu, d) + '</td><td>' + cell(c.picnic_nu, d) +
+      const kop = c.groep !== groepNu ? (groepNu = c.groep, '<tr><th colspan="5" style="padding-top:1rem">' + (c.groep === 'huishouden' ? 'Huishouden' : 'Drogisterij') + '</th></tr>') : '';
+      const d = dec(c.eenheid);
+      return kop + '<tr><td>' + esc(c.naam) + '<br><span class="muted">' + c.eenheid_label + '</span></td><td>' + cell(c.beste_nu, d) + '</td><td>' + cell(c.picnic_nu, d) +
         (c.picnic_vs_benchmark ? ' <span class="muted">(' + Math.round((c.picnic_vs_benchmark - 1) * 100) + '% t.o.v. benchmark)</span>' : '') +
         '</td><td>' + eur(c.benchmark.prijs_per_eenheid, d) + ' <span class="muted">' + esc(c.benchmark.winkel || c.benchmark.bron || '') + '</span></td><td>' +
         eur(c.gemiddelde_90d, d) + ' <span class="muted">(' + c.aantal_metingen_90d + ' metingen)</span>' +
@@ -109,11 +124,12 @@ async function load() {
     $('#fail').textContent = sum.listings_3_dagen_fout.length ? '3 dagen op rij mislukt: ' + sum.listings_3_dagen_fout.map((l) => '#' + l.listing_id + ' ' + l.winkel + ' ' + l.productnaam).join('; ') : '';
     $('#lst tbody').innerHTML = lst.map((l) => '<tr><td>' + l.id + '</td><td>' + esc(cn[l.category_id]) + '</td><td>' + esc(l.winkel) + '</td><td>' + esc(l.merk) + ' – <a href="' + esc(l.url) + '" target="_blank" rel="noopener">' + esc(l.productnaam) + '</a></td><td>' + l.stuks_per_verpakking + '</td><td>' + l.scrape_methode + '</td><td>' +
       (l.laatste_datum ? (l.laatste_ok ? eur(l.laatste_prijs, 2) : '<span class="bad">fout</span>') + ' <span class="muted">' + l.laatste_datum + '</span>' : '<span class="muted">–</span>') +
+      ' <button class="link" data-prijs="' + l.id + '" title="Prijs invoeren">✎</button>' +
       '</td><td><button class="link" data-id="' + l.id + '" data-a="' + (l.actief ? 0 : 1) + '">' + (l.actief ? 'ja' : 'nee') + '</button></td></tr>').join('');
     msg('Geladen.');
   } catch (e) { msg('Fout: ' + e.message, true); }
 }
-const EENH = { doekje: 'doekje', tablet: 'tablet', ml: '100 ml', liter: 'liter' };
+const EENH = { doekje: 'doekje', tablet: 'tablet', ml: '100 ml', liter: 'liter', rol: 'rol', wasbeurt: 'wasbeurt', zak: 'zak', meter: 'meter', stuk: 'stuk' };
 let zoekTimer;
 async function zoekNu() {
   const q = $('#q').value.trim();
@@ -126,7 +142,7 @@ async function zoekNu() {
     let cat = null, html = '';
     for (const x of rows) {
       if (x.category_id !== cat) { cat = x.category_id; html += '<h3>' + esc(x.categorie) + '</h3>'; }
-      const d = x.eenheid === 'doekje' || x.eenheid === 'tablet' ? 4 : 2;
+      const d = dec(x.eenheid);
       const naam = x.productnaam.toLowerCase().startsWith(x.merk.toLowerCase()) ? x.productnaam : x.merk + ' ' + x.productnaam;
       const delen = [];
       if (x.prijs != null) delen.push(eur(x.prijs, 2));
@@ -147,7 +163,17 @@ $('#keyform').onsubmit =(e) => { e.preventDefault(); KEY = $('#key').value.trim(
 const formJson = (f) => Object.fromEntries([...new FormData(f)].filter(([, v]) => v !== '').map(([k, v]) => [k, /^(category_id|stuks_per_verpakking|benchmark_prijs)$/.test(k) ? Number(v) : v]));
 $('#catform').onsubmit = async (e) => { e.preventDefault(); try { await api('/api/categories', { method: 'POST', body: JSON.stringify(formJson(e.target)) }); e.target.reset(); load(); } catch (x) { msg('Fout: ' + x.message, true); } };
 $('#lform').onsubmit = async (e) => { e.preventDefault(); try { await api('/api/listings', { method: 'POST', body: JSON.stringify(formJson(e.target)) }); e.target.reset(); load(); } catch (x) { msg('Fout: ' + x.message, true); } };
-$('#lst').onclick = async (e) => { const b = e.target.closest('button[data-id]'); if (!b) return; try { await api('/api/listings/' + b.dataset.id, { method: 'PATCH', body: JSON.stringify({ actief: Number(b.dataset.a) }) }); load(); } catch (x) { msg('Fout: ' + x.message, true); } };
+$('#lst').onclick = async (e) => {
+  const pb = e.target.closest('button[data-prijs]');
+  if (pb) {
+    const v = prompt('Prijs per verpakking (bv. 1,29), eventueel gevolgd door een actie (bv. "2,58 2 voor 2,00"):');
+    if (!v) return;
+    const m = v.trim().match(/^(\\d+(?:[.,]\\d{1,2})?)\\s*(.*)$/);
+    if (!m) { msg('Ongeldige prijs', true); return; }
+    try { await api('/api/listings/' + pb.dataset.prijs + '/prijs', { method: 'POST', body: JSON.stringify({ prijs: Number(m[1].replace(',', '.')), actie_label: m[2] || null }) }); load(); } catch (x) { msg('Fout: ' + x.message, true); }
+    return;
+  }
+  const b = e.target.closest('button[data-id]'); if (!b) return; try { await api('/api/listings/' + b.dataset.id, { method: 'PATCH', body: JSON.stringify({ actief: Number(b.dataset.a) }) }); load(); } catch (x) { msg('Fout: ' + x.message, true); } };
 load();
 </script>
 </body>

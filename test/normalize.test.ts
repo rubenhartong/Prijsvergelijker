@@ -122,3 +122,19 @@ describe('normalize', () => {
     expect(normalize({ prijs: null, ...doekjes })).toBeNull();
   });
 });
+
+import { wasbeurtenUitTekst } from '../src/normalize';
+
+describe('wasbeurtenUitTekst', () => {
+  it.each([
+    ['Ariel vloeibaar wasmiddel 38 wasbeurten', 38],
+    ['1,2 L - 24 scoops', 24],
+    ['Omo capsules 40 doseringen', 40],
+    ['wasverzachter 1 liter', null],
+    [null, null],
+  ])('%s -> %s', (t, n) => expect(wasbeurtenUitTekst(t as string | null)).toBe(n));
+});
+
+describe('ruis in labels', () => {
+  it.each(['99 voor € 9.00', '1 voor 9.00', '12+12 gratis'])('%s -> onbekend', (l) => expect(parseActie(l).type).toBe('onbekend'));
+});

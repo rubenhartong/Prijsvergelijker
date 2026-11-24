@@ -11,7 +11,30 @@
 // - Zonder label maar met prijs < normale_prijs geldt de getoonde prijs
 //   (een stille "nu €y"-korting).
 
-export type Eenheid = 'doekje' | 'tablet' | 'ml' | 'liter';
+export type Eenheid = 'doekje' | 'tablet' | 'ml' | 'liter' | 'rol' | 'wasbeurt' | 'zak' | 'meter' | 'stuk';
+
+export const EENHEDEN: Eenheid[] = ['doekje', 'tablet', 'ml', 'liter', 'rol', 'wasbeurt', 'zak', 'meter', 'stuk'];
+
+/** Leesbare eenheid waarop de prijs per eenheid is gebaseerd. */
+export const EENHEID_LABEL: Record<Eenheid, string> = {
+  doekje: 'per doekje', tablet: 'per tablet', ml: 'per 100 ml', liter: 'per liter', rol: 'per rol',
+  wasbeurt: 'per wasbeurt', zak: 'per zak', meter: 'per meter', stuk: 'per stuk',
+};
+
+/** Aantal decimalen om een prijs per eenheid te tonen (goedkope eenheden krijgen meer). */
+export function decimalen(eenheid: Eenheid): number {
+  return eenheid === 'ml' || eenheid === 'liter' ? 2 : eenheid === 'doekje' || eenheid === 'tablet' ? 4 : 3;
+}
+
+/**
+ * Aantal wasbeurten uit een verpakkingstekst ("Wasmiddel 38 wasbeurten", "1,2 L - 24 scoops").
+ * Geeft null als het niet te lezen is (dan geldt listing.stuks_per_verpakking).
+ */
+export function wasbeurtenUitTekst(tekst: string | null | undefined): number | null {
+  const m = (tekst ?? '').toLowerCase().match(/(\d{1,3})\s*(?:wasbeurten|wasbeurt|was(?:sen)?|scoops|doseringen|doses)\b/);
+  const n = m ? Number(m[1]) : NaN;
+  return n > 0 && n < 500 ? n : null;
+}
 
 export type ActieType =
   | 'geen'
@@ -49,7 +72,7 @@ export interface NormalizeResult {
 
 /** Hoeveel "eenheden" (waarop de prijs per eenheid is gebaseerd) zitten er in een hoeveelheid. */
 export function eenhedenIn(hoeveelheid: number, eenheid: Eenheid): number {
-  // ml-categorieën rekenen per 100 ml; liter per liter; doekje/tablet per stuk.
+  // ml rekent per 100 ml; alle andere eenheden per 1 (stuk, rol, wasbeurt, zak, meter, liter).
   return eenheid === 'ml' ? hoeveelheid / 100 : hoeveelheid;
 }
 
@@ -79,7 +102,8 @@ export function parseActie(labelRaw: string | null | undefined): Actie {
   if ((m = label.match(/(\d+)\s*\+\s*(\d+)(?:\s*gratis)?/))) {
     const x = Number(m[1]);
     const y = Number(m[2]);
-    if (x > 0 && y > 0) return { type: 'x_plus_y_gratis', min_aantal: x + y, totaal: (b) => x * b };
+    // max 10 stuks: grotere getallen zijn ruis van de pagina (bv. "99 voor")
+    if (x > 0 && y > 0 && x + y <= 10) return { type: 'x_plus_y_gratis', min_aantal: x + y, totaal: (b) => x * b };
   }
 
   // "2e gratis" / "tweede gratis" == 1+1
@@ -102,7 +126,7 @@ export function parseActie(labelRaw: string | null | undefined): Actie {
   if ((m = label.match(new RegExp(String.raw`(\d+)\s*(?:stuks\s*)?voor\s*` + BEDRAG)))) {
     const x = Number(m[1]);
     const y = parseBedrag(m[2]);
-    if (x > 0 && y !== null && y > 0) return { type: 'x_voor_y', min_aantal: x, totaal: () => y };
+    if (x > 1 && x <= 10 && y !== null && y > 0) return { type: 'x_voor_y', min_aantal: x, totaal: () => y };
   }
 
   // "25% korting", "-25%"

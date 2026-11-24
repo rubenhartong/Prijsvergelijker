@@ -1,5 +1,5 @@
 import type { Env } from './env';
-import { eenhedenIn, normalize, type Eenheid } from './normalize';
+import { EENHEID_LABEL, eenhedenIn, normalize, wasbeurtenUitTekst, type Eenheid } from './normalize';
 import { HttpError, nlNu } from './util';
 
 export interface CategoryRow {
@@ -8,6 +8,10 @@ export interface CategoryRow {
   eenheid: Eenheid;
   benchmark_prijs: number | null;
   benchmark_listing_id: number | null;
+  groep: 'drogisterij' | 'huishouden';
+  trefwoorden: string | null;
+  zoektermen: string | null;
+  omschrijving: string | null;
 }
 
 export interface ListingRow {
@@ -35,6 +39,10 @@ export interface RuweWaarneming {
   actie_label?: string | null;
   bron_ok?: boolean;
   foutmelding?: string | null;
+  /** Eenheden per verpakking zoals op de verpakking gelezen (overschrijft listing.stuks_per_verpakking). */
+  eenheden?: number | null;
+  /** Productnaam/hoeveelheid zoals de winkel die toont; hieruit wordt bv. "38 wasbeurten" gelezen. */
+  verpakking_tekst?: string | null;
 }
 
 export async function getListing(env: Env, id: number): Promise<ListingMetEenheid | null> {
@@ -55,6 +63,14 @@ export async function bewaarWaarneming(env: Env, w: RuweWaarneming, bron: string
   const datum = w.datum ?? nlNu().datum;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(datum)) throw new HttpError(400, 'datum moet YYYY-MM-DD zijn');
 
+  // Eenheden per verpakking: expliciet meegegeven > gelezen van de verpakking (wasbeurten) >
+  // handmatig veld van de listing.
+  const gelezen =
+    w.eenheden && w.eenheden > 0
+      ? w.eenheden
+      : listing.eenheid === 'wasbeurt'
+        ? wasbeurtenUitTekst(w.verpakking_tekst)
+        : null;
   const n =
     w.bron_ok === false
       ? null
@@ -62,7 +78,7 @@ export async function bewaarWaarneming(env: Env, w: RuweWaarneming, bron: string
           prijs: w.prijs ?? null,
           normale_prijs: w.normale_prijs ?? null,
           actie_label: w.actie_label ?? null,
-          stuks_per_verpakking: listing.stuks_per_verpakking,
+          stuks_per_verpakking: gelezen ?? listing.stuks_per_verpakking,
           eenheid: listing.eenheid,
         });
   const ok = n !== null;
@@ -71,13 +87,13 @@ export async function bewaarWaarneming(env: Env, w: RuweWaarneming, bron: string
   await env.DB.prepare(
     `INSERT INTO price_observation
        (listing_id, datum, prijs, normale_prijs, actie_label, min_aantal, effectieve_prijs_totaal,
-        prijs_per_eenheid, bron_ok, bron, foutmelding)
-     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
+        prijs_per_eenheid, bron_ok, bron, foutmelding, eenheden)
+     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)
      ON CONFLICT (listing_id, datum) DO UPDATE SET
        prijs = excluded.prijs, normale_prijs = excluded.normale_prijs, actie_label = excluded.actie_label,
        min_aantal = excluded.min_aantal, effectieve_prijs_totaal = excluded.effectieve_prijs_totaal,
        prijs_per_eenheid = excluded.prijs_per_eenheid, bron_ok = excluded.bron_ok, bron = excluded.bron,
-       foutmelding = excluded.foutmelding, aangemaakt = datetime('now')
+       foutmelding = excluded.foutmelding, eenheden = excluded.eenheden, aangemaakt = datetime('now')
      WHERE excluded.bron_ok = 1 OR price_observation.bron_ok = 0`,
   )
     .bind(
@@ -92,9 +108,10 @@ export async function bewaarWaarneming(env: Env, w: RuweWaarneming, bron: string
       ok ? 1 : 0,
       bron,
       fout,
+      gelezen,
     )
     .run();
-  return { listing_id: listing.id, datum, bron_ok: ok, ...(n ?? {}), foutmelding: fout };
+  return { listing_id: listing.id, datum, bron_ok: ok, ...(n ?? {}), eenheden: gelezen ?? listing.stuks_per_verpakking, foutmelding: fout };
 }
 
 /** Herbereken per categorie de benchmark: laagste prijs per eenheid van de laatste 90 dagen (alleen actieve listings). */
@@ -186,7 +203,6 @@ export async function samenvatting(env: Env) {
 
   const acties = await lopendeActies(env, vandaag);
   const r4 = (n: number | null | undefined, d = 4) => (n == null ? null : Math.round(n * 10 ** d) / 10 ** d);
-  const eenheidLabel = { doekje: 'per doekje', tablet: 'per tablet', ml: 'per 100 ml', liter: 'per liter' } as const;
 
   return {
     gegenereerd: new Date().toISOString(),
@@ -220,7 +236,8 @@ export async function samenvatting(env: Env) {
         id: c.id,
         naam: c.naam,
         eenheid: c.eenheid,
-        eenheid_label: eenheidLabel[c.eenheid],
+        eenheid_label: EENHEID_LABEL[c.eenheid],
+        groep: c.groep,
         beste_nu: fmt(best),
         picnic_nu: fmt(picnic),
         // >1 betekent duurder dan de 90-dagen-benchmark
@@ -321,13 +338,15 @@ export interface FolderActieIn {
 
 /** Koppel een titel aan een categorie via category.trefwoorden (heel woord, hoofdletterongevoelig). */
 export function koppelCategorie(titel: string, cats: { id: number; trefwoorden: string | null }[]): number | null {
+  // Langste passende trefwoord wint: "Dreft afwasmiddel" -> Afwasmiddel (niet Vaatwas via "dreft").
   const t = ` ${titel.toLowerCase().replace(/[^a-z0-9à-ÿ]+/g, ' ')} `;
+  let beste: { id: number; lengte: number } | null = null;
   for (const c of cats) {
     for (const w of (c.trefwoorden ?? '').split(',').map((x) => x.trim().toLowerCase()).filter(Boolean)) {
-      if (t.includes(` ${w} `)) return c.id;
+      if (t.includes(` ${w} `) && (!beste || w.length > beste.lengte)) beste = { id: c.id, lengte: w.length };
     }
   }
-  return null;
+  return beste?.id ?? null;
 }
 
 /**
@@ -335,15 +354,37 @@ export function koppelCategorie(titel: string, cats: { id: number; trefwoorden: 
  * "5 x 75 ml" -> 375 (ml), "650 ml" -> 0.65 (liter), "2 x 56 stuks" -> 112 (doekje/tablet).
  */
 export function hoeveelheidUitTitel(titel: string, eenheid: Eenheid): number | null {
-  const t = titel.toLowerCase().replace(',', '.');
-  const m = t.match(/(?:(\d+)\s*[x×]\s*)?(\d+(?:\.\d+)?)\s*(ml|l|liter|stuks|st|tabletten|capsules|doekjes)\b/);
-  if (!m) return null;
+  const t = titel.toLowerCase().replace(/(\d),(\d)/g, '$1.$2');
+  if (eenheid === 'wasbeurt') return wasbeurtenUitTekst(t);
+  // Alle hoeveelheden aflopen; de eerste die bij de eenheid past telt ("60 L … 20 stuks" -> 20 zakken).
+  for (const m of t.matchAll(
+    /(?:(\d+)\s*[x×]\s*)?(\d+(?:\.\d+)?)\s*(ml|cl|l|liter|stuks|st|tabletten|capsules|doekjes|rollen|rol|zakken|zakjes|m|meter|sponzen|sponsjes)\b/g,
+  )) {
+    const r = hoeveelheidUitMatch(m, eenheid);
+    if (r) return r;
+  }
+  return null;
+}
+
+function hoeveelheidUitMatch(m: RegExpMatchArray, eenheid: Eenheid): number | null {
   const n = m[1] ? Number(m[1]) : 1;
   const q = Number(m[2]);
   const e = m[3];
-  if (eenheid === 'ml') return e === 'ml' ? n * q : e === 'l' || e === 'liter' ? n * q * 1000 : null;
-  if (eenheid === 'liter') return e === 'ml' ? (n * q) / 1000 : e === 'l' || e === 'liter' ? n * q : null;
-  return ['stuks', 'st', 'tabletten', 'capsules', 'doekjes'].includes(e) ? n * q : null;
+  const ml = e === 'ml' ? q : e === 'cl' ? q * 10 : e === 'l' || e === 'liter' ? q * 1000 : null;
+  switch (eenheid) {
+    case 'ml':
+      return ml ? n * ml : null;
+    case 'liter':
+      return ml ? (n * ml) / 1000 : null;
+    case 'meter':
+      return e === 'm' || e === 'meter' ? n * q : null;
+    case 'rol':
+      return ['rollen', 'rol', 'stuks', 'st'].includes(e) ? n * q : null;
+    case 'zak':
+      return ['zakken', 'zakjes', 'stuks', 'st'].includes(e) ? n * q : null;
+    default: // doekje, tablet, stuk
+      return ['stuks', 'st', 'tabletten', 'capsules', 'doekjes', 'zakjes', 'sponzen', 'sponsjes'].includes(e) ? n * q : null;
+  }
 }
 
 const datumOk = (d: unknown) => (typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : null);
@@ -368,7 +409,8 @@ export async function bewaarActies(env: Env, acties: FolderActieIn[]) {
     }
     // Alleen met een duidelijk actielabel: zonder label is vaak onduidelijk op welke variant/hoeveelheid
     // de folderprijs slaat (bv. "Taft 3 x 150 ml" is spray, niet de wax van 75 ml).
-    const ppe = a.prijs && q && a.actie_label ? Math.round((a.prijs / eenhedenIn(q, eenheid)) * 1e5) / 1e5 : null;
+    // Action: een folderregel is een concreet product met prijs, ook zonder actielabel.
+    const ppe = a.prijs && q && (a.actie_label || a.winkel === 'action') ? Math.round((a.prijs / eenhedenIn(q, eenheid)) * 1e5) / 1e5 : null;
     await env.DB.prepare(
       `INSERT INTO folder_actie (winkel, category_id, titel, actie_label, prijs, prijs_was, prijs_per_eenheid, geldig_van, geldig_tot, url)
        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
@@ -395,4 +437,140 @@ export async function lopendeActies(env: Env, vandaag: string) {
       .bind(vandaag)
       .all<{ category_id: number; winkel: string; titel: string; actie_label: string | null; prijs: number | null; prijs_was: number | null; prijs_per_eenheid: number | null; geldig_van: string | null; geldig_tot: string | null; url: string }>()
   ).results;
+}
+
+// ---------------------------------------------------------------- kandidaten (ontdekken)
+export interface KandidaatIn {
+  category_id: number;
+  winkel: string;
+  zoekterm?: string | null;
+  extern_id: string;
+  naam: string;
+  merk?: string | null;
+  hoeveelheid?: string | null;
+  prijs?: number | null;
+  url?: string | null;
+}
+
+export async function bewaarKandidaten(env: Env, ks: KandidaatIn[]) {
+  for (const k of ks) {
+    await env.DB.prepare(
+      `INSERT INTO kandidaat (category_id, winkel, zoekterm, extern_id, naam, merk, hoeveelheid, prijs, url)
+       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
+       ON CONFLICT (category_id, winkel, extern_id) DO UPDATE SET naam = excluded.naam, merk = excluded.merk,
+         hoeveelheid = excluded.hoeveelheid, prijs = excluded.prijs, url = excluded.url, zoekterm = excluded.zoekterm,
+         gezien = datetime('now')`,
+    )
+      .bind(k.category_id, k.winkel, k.zoekterm ?? null, String(k.extern_id), k.naam.slice(0, 200), k.merk ?? null, k.hoeveelheid ?? null, k.prijs ?? null, k.url ?? null)
+      .run();
+  }
+  return { opgeslagen: ks.length };
+}
+
+// ---------------------------------------------------------------- huishouden / Action-ronde
+interface HuisRij {
+  listing_id: number;
+  category_id: number;
+  winkel: string;
+  merk: string;
+  productnaam: string;
+  url: string;
+  prijs: number | null;
+  effectieve_prijs_totaal: number | null;
+  min_aantal: number | null;
+  actie_label: string | null;
+  prijs_per_eenheid: number;
+  eenheden: number;
+  datum: string;
+}
+
+/**
+ * Per huishoudartikel: Picnic vs. beste (incl. Action-folderprijzen) en of een Action-ronde loont.
+ * besparing_per_verpakking = (picnic − beste) per eenheid × eenheden in een Picnic-verpakking.
+ */
+export async function huishouden(env: Env, drempel: number) {
+  const { datum: vandaag } = nlNu();
+  const gisteren = new Date(Date.parse(vandaag) - 864e5).toISOString().slice(0, 10);
+  const cats = (
+    await env.DB.prepare(`SELECT * FROM category WHERE groep = 'huishouden' ORDER BY id`).all<CategoryRow>()
+  ).results;
+  const nu = (
+    await env.DB.prepare(
+      `SELECT o.listing_id, l.category_id, l.winkel, l.merk, l.productnaam, l.url, o.prijs, o.effectieve_prijs_totaal,
+              o.min_aantal, o.actie_label, o.prijs_per_eenheid, COALESCE(o.eenheden, l.stuks_per_verpakking) AS eenheden, o.datum
+       FROM price_observation o JOIN listing l ON l.id = o.listing_id JOIN category c ON c.id = l.category_id
+       WHERE c.groep = 'huishouden' AND o.bron_ok = 1 AND l.actief = 1 AND o.datum >= ?1
+         AND o.datum = (SELECT MAX(o2.datum) FROM price_observation o2 WHERE o2.listing_id = o.listing_id AND o2.bron_ok = 1)
+       ORDER BY o.prijs_per_eenheid`,
+    )
+      .bind(gisteren)
+      .all<HuisRij>()
+  ).results;
+  const acties = (await lopendeActies(env, vandaag)).filter((a) => a.prijs_per_eenheid != null && (!a.geldig_van || a.geldig_van <= vandaag));
+  const r = (n: number | null | undefined, d = 4) => (n == null ? null : Math.round(n * 10 ** d) / 10 ** d);
+
+  const artikelen = cats.map((c) => {
+    const mijn = nu.filter((o) => o.category_id === c.id);
+    const picnic = mijn.find((o) => o.winkel === 'picnic') ?? null;
+    type Kand = { winkel: string; prijs_per_eenheid: number; prijs: number | null; url: string; product: string; actie_label: string | null; bron: 'prijs' | 'folder' };
+    const kandidaten: Kand[] = [
+      ...mijn.map((o) => ({ winkel: o.winkel, prijs_per_eenheid: o.prijs_per_eenheid, prijs: o.prijs, url: o.url, product: `${o.merk} ${o.productnaam}`, actie_label: o.actie_label, bron: 'prijs' as const })),
+      ...acties
+        .filter((a) => a.category_id === c.id)
+        .map((a) => ({ winkel: a.winkel, prijs_per_eenheid: a.prijs_per_eenheid!, prijs: a.prijs, url: a.url, product: a.titel, actie_label: a.actie_label, bron: 'folder' as const })),
+    ].sort((a, b) => a.prijs_per_eenheid - b.prijs_per_eenheid);
+    const beste = kandidaten[0] ?? null;
+    const picnicEenheden = picnic ? eenhedenIn(picnic.eenheden, c.eenheid) : null;
+    const besparing =
+      picnic && beste && picnicEenheden ? Math.max(0, (picnic.prijs_per_eenheid - beste.prijs_per_eenheid) * picnicEenheden) : null;
+    return {
+      id: c.id,
+      naam: c.naam,
+      eenheid: c.eenheid,
+      eenheid_label: EENHEID_LABEL[c.eenheid],
+      gelijkwaardig: c.omschrijving,
+      picnic: picnic && { prijs_per_eenheid: r(picnic.prijs_per_eenheid, 5), prijs: picnic.prijs, url: picnic.url, product: `${picnic.merk} ${picnic.productnaam}`, actie_label: picnic.actie_label, eenheden_per_verpakking: picnic.eenheden },
+      beste: beste && { winkel: beste.winkel, prijs_per_eenheid: r(beste.prijs_per_eenheid, 5), prijs: beste.prijs, url: beste.url, product: beste.product, actie_label: beste.actie_label, bron: beste.bron },
+      besparing_per_verpakking: r(besparing, 2),
+      action: (() => {
+        const a = kandidaten.find((k) => k.winkel === 'action');
+        return a ? { prijs_per_eenheid: r(a.prijs_per_eenheid, 5), prijs: a.prijs, url: a.url, product: a.product, bron: a.bron } : null;
+      })(),
+    };
+  });
+
+  // Action-ronde: artikelen waar Action het goedkoopst is en Picnic duurder.
+  const ronde = artikelen.filter((a) => a.beste?.winkel === 'action' && (a.besparing_per_verpakking ?? 0) > 0);
+  const totaal = ronde.reduce((s, a) => s + (a.besparing_per_verpakking ?? 0), 0);
+  return {
+    gegenereerd: new Date().toISOString(),
+    datum: vandaag,
+    drempel,
+    artikelen,
+    action_ronde: {
+      artikelen: ronde.map((a) => a.naam),
+      besparing_totaal: r(totaal, 2),
+      loont: totaal >= drempel,
+    },
+  };
+}
+
+/** Alle geslaagde waarnemingen opnieuw normaliseren (na een wijziging in de regels). */
+export async function herbereken(env: Env) {
+  const rows = (
+    await env.DB.prepare(
+      `SELECT o.id, o.prijs, o.normale_prijs, o.actie_label, COALESCE(o.eenheden, l.stuks_per_verpakking) AS stuks, c.eenheid
+       FROM price_observation o JOIN listing l ON l.id = o.listing_id JOIN category c ON c.id = l.category_id
+       WHERE o.bron_ok = 1`,
+    ).all<{ id: number; prijs: number | null; normale_prijs: number | null; actie_label: string | null; stuks: number; eenheid: Eenheid }>()
+  ).results;
+  const stmts = rows.flatMap((r) => {
+    const n = normalize({ prijs: r.prijs, normale_prijs: r.normale_prijs, actie_label: r.actie_label, stuks_per_verpakking: r.stuks, eenheid: r.eenheid });
+    return n
+      ? [env.DB.prepare('UPDATE price_observation SET min_aantal = ?1, effectieve_prijs_totaal = ?2, prijs_per_eenheid = ?3 WHERE id = ?4').bind(n.min_aantal, n.effectieve_prijs_totaal, n.prijs_per_eenheid, r.id)]
+      : [];
+  });
+  for (let i = 0; i < stmts.length; i += 50) await env.DB.batch(stmts.slice(i, i + 50));
+  await herberekenBenchmarks(env);
+  return { herberekend: stmts.length };
 }

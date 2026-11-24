@@ -31,3 +31,20 @@ describe('hoeveelheidUitTitel', () => {
   it('stuks', () => expect(hoeveelheidUitTitel('Huggies Pure 2 x 56 stuks', 'doekje')).toBe(112));
   it('onbekend', () => expect(hoeveelheidUitTitel('Sensodyne en Parodontax 2+2 gratis', 'ml')).toBeNull());
 });
+
+describe('hoeveelheidUitTitel (huishouden)', () => {
+  it('liter uit ml', () => expect(hoeveelheidUitTitel('Allesreiniger 1,5 L', 'liter')).toBe(1.5));
+  it('rollen', () => expect(hoeveelheidUitTitel('Toiletpapier 3-laags 12 rollen', 'rol')).toBe(12));
+  it('meter', () => expect(hoeveelheidUitTitel('Bakpapier 30 m', 'meter')).toBe(30));
+  it('wasbeurten', () => expect(hoeveelheidUitTitel('Wasmiddel kleur 38 wasbeurten', 'wasbeurt')).toBe(38));
+  it('zakken', () => expect(hoeveelheidUitTitel('Afvalzakken 60 L trekband 20 stuks', 'zak')).toBe(20));
+});
+
+describe('koppelCategorie: langste trefwoord wint', () => {
+  const cats = [
+    { id: 2, trefwoorden: 'finish,dreft' },
+    { id: 11, trefwoorden: 'afwasmiddel' },
+  ];
+  it('Dreft afwasmiddel -> afwasmiddel', () => expect(koppelCategorie('Dreft afwasmiddel original', cats)).toBe(11));
+  it('Dreft platinum -> vaatwas', () => expect(koppelCategorie('Dreft platinum vaatwastabletten', cats)).toBe(2));
+});

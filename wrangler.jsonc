@@ -6,6 +6,7 @@
   "observability": { "enabled": true },
   // Dagelijks 06:00 NL-tijd: cron draait elke 5 min in 04:00–05:59 UTC; de handler doet alleen
   // iets als het in Europe/Amsterdam 06:xx is (zomer: 04 UTC, winter: 05 UTC), 4 listings per keer.
+  "vars": { "ACTION_DREMPEL": "5.00" },
   "triggers": { "crons": ["*/5 4-5 * * *"] },
   "d1_databases": [
     {
