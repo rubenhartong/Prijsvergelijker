@@ -148,3 +148,28 @@ def test_folderz_links_en_match():
 def test_bol_negeert_labels():
     doc = '<script type="application/ld+json">{"@type":"Product","offers":{"price":"77.99"}}</script>'
     assert uit_pagina("bol", 200, doc, ["2 + 4 gratis"]).actie_label is None
+
+
+def test_jumbo_nuxt():
+    from jumbo_bron import jumbo, sku_uit_url
+
+    doc = lees("jumbo-dreft-676439ZK.html")
+    u = "https://www.jumbo.com/producten/dreft-platinum-plus-all-in-one-vaatwastabletten-anti-dofheidstechnologie-19-x-676439ZK"
+    assert sku_uit_url(u) == "676439ZK"
+    r = jumbo(doc, u)
+    assert (r.prijs, r.normale_prijs, r.actie_label) == (13.99, None, None)
+    r = jumbo(doc, "https://www.jumbo.com/producten/finish-ultimate-regular-16-753142ZK")
+    assert (r.prijs, r.actie_label) == (9.99, "1+1 gratis")
+
+
+def test_plus_mapping():
+    import json
+    from plus_bron import naar_waarneming, plus_sku
+
+    assert plus_sku("https://www.plus.nl/product/dreft-platinum-plus-vaatwascapsules-citroen-zak-72-st-897566-897566") == "897566"
+    off = json.loads((FX / "plus-offer-163552.json").read_text())
+    r = naar_waarneming({"Price": "18.99"}, off, "2026-11-23")
+    assert (r.prijs, r.actie_label) == (18.99, "2+3 GRATIS")
+    assert naar_waarneming({"Price": "18.99"}, off, "2026-11-30").actie_label is None
+    gratis_bezorging = json.loads((FX / "plus-offer-682631.json").read_text())
+    assert naar_waarneming({"Price": "15.49"}, gratis_bezorging, "2026-11-23").actie_label is None

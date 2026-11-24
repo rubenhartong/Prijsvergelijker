@@ -109,3 +109,13 @@ de prijzen. Folderz heeft een JavaScript-check van AWS WAF (geen captcha), die e
 browser uitvoert. De Worker koppelt de acties via `category.trefwoorden` en rekent de prijs per
 eenheid uit als de hoeveelheid uit de titel blijkt ("5 x 75 ml"). De Kruidvat- en
 Action-listings zelf staan inactief.
+
+## Update 2026-11-24: alles via de thuis-scraper
+Bij de eerste volledige ochtendronde blokkeerden Amazon (captcha), Jumbo (5× 403) en Plus
+(3× 403) de Cloudflare-Worker. Vanaf de thuisverbinding liepen AH, Picnic en Etos foutloos.
+Daarom draait alles nu via de HA-add-on (06:30):
+- Jumbo: Chromium + Nuxt-payload (`jumbo_bron.py`, zelfde logica als de TS-parser)
+- Plus: anonieme data-API (`plus_bron.py`); let op: plus.nl stuurt brotli, dus `brotli` is nodig
+- Amazon: Chromium, alleen de buybox-prijs
+De cron in de Worker blijft staan, maar er zijn geen `cloud`-listings meer. `POST /api/probe`
+en de TS-parsers blijven bruikbaar om te testen.

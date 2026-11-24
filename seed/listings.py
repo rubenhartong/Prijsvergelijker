@@ -158,7 +158,7 @@ L = [
  (5,'jumbo','Slimpie','Slimpie sinaasappel siroop 650 ml',J+'slimpie-sinaasappel-siroop-650-ml-439988FLS',0.65),
  (5,'plus','Slimpie','Slimpie limonadesiroop aardbei 650 ml',PL+'slimpie-limonadesiroop-aardbei-fles-650-ml-649828',0.65),
 ]
-CLOUD = {'jumbo', 'plus'}  # zie VERKENNING.md
+CLOUD: set[str] = set()  # alles via de thuis-scraper (2026-11-24); zie VERKENNING.md
 # Keuze gebruiker (2026-11-23): bij babydoekjes alleen Huggies; de rest blijft bewaard maar inactief.
 # bol-multipacks waarvan de pagina een andere variant/prijs toont (2026-11-23) -> uit.
 BOL_UIT = {'9300000169515099', '9300000026201688'}

@@ -63,6 +63,7 @@ class Browser_:
             except Exception:  # sommige sites blijven trackers laden
                 pass
             status = resp.status if resp else None
+            self.laatste_url = page.url  # na redirects (Jumbo: SKU kan wijzigen)
             doc = page.content()
             try:
                 labels = page.evaluate(JS_LABELS, LABEL_SELECTOR)
@@ -75,6 +76,7 @@ class Browser_:
     # ---- gedeelde context (cookies blijven bewaard), bv. voor Folderz: de JavaScript-check
     # wordt één keer door de browser uitgevoerd en daarna geldt het cookie voor de volgende pagina's.
     _ctx = None
+    laatste_url: str | None = None
 
     def _pagina(self, url: str):
         if self._ctx is None:

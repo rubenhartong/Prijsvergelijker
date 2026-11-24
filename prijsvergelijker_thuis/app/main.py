@@ -95,6 +95,7 @@ def ronde(opt: dict) -> None:
     picnic = None
     ah = None
     kv = None
+    plus = None
     picnic_fout = None
     buffer: list[dict] = []
     stats = defaultdict(lambda: [0, 0])
@@ -123,6 +124,12 @@ def ronde(opt: dict) -> None:
 
                         ah = AhBron()
                     r = ah.haal(l["url"])
+                elif w == "plus":
+                    if plus is None:
+                        from plus_bron import PlusBron
+
+                        plus = PlusBron()
+                    r = plus.haal(l["url"])
                 elif w == "kruidvat":
                     if kv is None:
                         from kruidvat_bron import KruidvatBron
@@ -135,7 +142,16 @@ def ronde(opt: dict) -> None:
 
                         browser = Browser_()
                     status, doc, labels = browser.haal(l["url"])
-                    r = uit_pagina(w, status, doc, labels)
+                    if w == "jumbo":
+                        from extract import blokkade
+                        from jumbo_bron import jumbo
+
+                        reden = blokkade(status, doc)
+                        if reden:
+                            raise Mislukt(f"jumbo: {reden}")
+                        r = jumbo(doc, l["url"], browser.laatste_url)
+                    else:
+                        r = uit_pagina(w, status, doc, labels)
                 obs = {"listing_id": l["id"], "datum": dag, "prijs": r.prijs, "normale_prijs": r.normale_prijs, "actie_label": r.actie_label}
                 stats[w][0] += 1
                 log.info("✓ #%s %s %s: €%s %s", l["id"], w, l["productnaam"], r.prijs, r.actie_label or "")
