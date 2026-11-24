@@ -111,9 +111,26 @@ async function route(req: Request, env: Env, ctx: ExecutionContext): Promise<Res
       res.push(await bewaarWaarneming(env, w, bron));
     }
     const ok = res.filter((r) => r.bron_ok).length;
-    await env.DB.prepare('INSERT INTO scrape_run (bron, aantal_ok, aantal_fout, foutmelding) VALUES (?, ?, ?, ?)')
-      .bind(bron, ok, res.length - ok, res.filter((r) => !r.bron_ok).map((r) => `#${r.listing_id}: ${r.foutmelding}`).join('\n') || null)
-      .run();
+    // Eén run-regel per bron per uur: de thuis-scraper stuurt elke waarneming los.
+    const fouten = res.filter((r) => !r.bron_ok).map((r) => `#${r.listing_id}: ${r.foutmelding}`).join('\n') || null;
+    const bestaand = await env.DB.prepare(
+      `SELECT id FROM scrape_run WHERE bron = ?1 AND tijdstip >= datetime('now', '-1 hour') ORDER BY id DESC LIMIT 1`,
+    )
+      .bind(bron)
+      .first<{ id: number }>();
+    if (bestaand) {
+      await env.DB.prepare(
+        `UPDATE scrape_run SET aantal_ok = aantal_ok + ?2, aantal_fout = aantal_fout + ?3,
+           foutmelding = CASE WHEN ?4 IS NULL THEN foutmelding WHEN foutmelding IS NULL THEN ?4 ELSE foutmelding || char(10) || ?4 END
+         WHERE id = ?1`,
+      )
+        .bind(bestaand.id, ok, res.length - ok, fouten)
+        .run();
+    } else {
+      await env.DB.prepare('INSERT INTO scrape_run (bron, aantal_ok, aantal_fout, foutmelding) VALUES (?, ?, ?, ?)')
+        .bind(bron, ok, res.length - ok, fouten)
+        .run();
+    }
     ctx.waitUntil(herberekenBenchmarks(env));
     return json({ opgeslagen: res }, 201);
   }
