@@ -295,7 +295,7 @@ export async function zoek(env: Env, q: string) {
   const acties = (await lopendeActies(env, vandaag)).filter((a) =>
     woorden.every((w) => `${a.titel} ${a.winkel} ${a.actie_label ?? ''}`.toLowerCase().includes(w)),
   );
-  return { q, resultaten, folderacties: acties };
+  return { q, resultaten, folderacties: acties, voorstellen: await voorstellen(env, woorden) };
 }
 
 async function zoekMet(env: Env, woorden: string[], hooi: string) {
@@ -573,4 +573,31 @@ export async function herbereken(env: Env) {
   for (let i = 0; i < stmts.length; i += 50) await env.DB.batch(stmts.slice(i, i + 50));
   await herberekenBenchmarks(env);
   return { herberekend: stmts.length };
+}
+
+/**
+ * Voorstellen: echte producten die de thuis-scraper bij Picnic/AH vond (tabel kandidaat) en die
+ * nog niet gevolgd worden. Met geschatte eenheden per verpakking en prijs per eenheid.
+ */
+export async function voorstellen(env: Env, woorden: string[]) {
+  if (!woorden.length) return [];
+  const hooi = `lower(k.naam || ' ' || COALESCE(k.merk, '') || ' ' || k.winkel || ' ' || COALESCE(k.zoekterm, '') || ' ' || c.naam)`;
+  const rows = (
+    await env.DB.prepare(
+      `SELECT k.*, c.naam AS categorie, c.eenheid FROM kandidaat k JOIN category c ON c.id = k.category_id
+       WHERE ${woorden.map((_, i) => `${hooi} LIKE ?${i + 1}`).join(' AND ')}
+         AND NOT EXISTS (SELECT 1 FROM listing l WHERE l.url = k.url OR (l.winkel = k.winkel AND l.url LIKE '%' || k.extern_id || '%'))
+       ORDER BY k.category_id, k.prijs LIMIT 60`,
+    )
+      .bind(...woorden.map((w) => `%${w}%`))
+      .all<KandidaatIn & { id: number; categorie: string; eenheid: Eenheid }>()
+  ).results;
+  return rows
+    .map((k) => {
+      const eenheden = hoeveelheidUitTitel(`${k.naam} ${k.hoeveelheid ?? ''}`, k.eenheid);
+      const ppe = k.prijs && eenheden ? Math.round((k.prijs / eenhedenIn(eenheden, k.eenheid)) * 1e5) / 1e5 : null;
+      return { ...k, eenheden_geschat: eenheden, prijs_per_eenheid_geschat: ppe };
+    })
+    .sort((a, b) => (a.category_id - b.category_id) || ((a.prijs_per_eenheid_geschat ?? 1e9) - (b.prijs_per_eenheid_geschat ?? 1e9)))
+    .slice(0, 30);
 }

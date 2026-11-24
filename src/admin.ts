@@ -131,6 +131,23 @@ async function load() {
 }
 const EENH = { doekje: 'doekje', tablet: 'tablet', ml: '100 ml', liter: 'liter', rol: 'rol', wasbeurt: 'wasbeurt', zak: 'zak', meter: 'meter', stuk: 'stuk' };
 let zoekTimer;
+let VOORSTEL = {};
+$('#zoek').onclick = async (e) => {
+  const b = e.target.closest('button[data-volg]');
+  if (!b) return;
+  const v = VOORSTEL[b.dataset.volg];
+  let n = v.eenheden_geschat;
+  if (!n) {
+    const a = prompt('Hoeveel ' + EENH[v.eenheid] + ' zitten er in "' + v.naam + '" (' + (v.hoeveelheid || '?') + ')?');
+    n = a ? Number(a.replace(',', '.')) : 0;
+    if (!(n > 0)) return;
+  }
+  try {
+    await api('/api/listings', { method: 'POST', body: JSON.stringify({ category_id: v.category_id, winkel: v.winkel, merk: v.merk || v.naam.split(' ')[0], productnaam: v.naam + (v.hoeveelheid ? ' ' + v.hoeveelheid : ''), url: v.url, stuks_per_verpakking: n, scrape_methode: 'thuis' }) });
+    msg('Gevolgd: ' + v.naam + ' (prijs volgt bij de volgende ronde)');
+    zoekNu(); load();
+  } catch (x) { msg('Fout: ' + x.message, true); }
+};
 async function zoekNu() {
   const q = $('#q').value.trim();
   if (q.length < 2) { $('#zoek').innerHTML = ''; $('#zoekleeg').textContent = ''; return; }
@@ -138,7 +155,8 @@ async function zoekNu() {
     const r = await api('/api/zoek?q=' + encodeURIComponent(q));
     const rows = r.resultaten;
     const fa = r.folderacties || [];
-    $('#zoekleeg').textContent = rows.length || fa.length ? '' : 'Niets gevonden in de gevolgde artikelen.';
+    const vs = r.voorstellen || [];
+    $('#zoekleeg').textContent = rows.length || fa.length || vs.length ? '' : 'Niets gevonden. Nieuwe producten verschijnen hier zodra de thuis-scraper ze bij Picnic/AH heeft gevonden.';
     let cat = null, html = '';
     for (const x of rows) {
       if (x.category_id !== cat) { cat = x.category_id; html += '<h3>' + esc(x.categorie) + '</h3>'; }
@@ -154,7 +172,19 @@ async function zoekNu() {
         '<div class="sub">' + delen.join(' · ') + '</div></div>';
     }
     if (fa.length) html += '<h3>Folderacties (Kruidvat, Action)</h3>' + fa.map((a) => '<div class="res"><div class="sub" style="color:inherit">' + actieRegel(a) + '</div></div>').join('');
+    if (vs.length) {
+      html += '<h3>Voorstellen: bestaande producten bij Picnic/AH (nog niet gevolgd)</h3>';
+      let vc = null;
+      for (const v of vs) {
+        if (v.category_id !== vc) { vc = v.category_id; html += '<div class="muted" style="margin-top:.4rem">' + esc(v.categorie) + '</div>'; }
+        html += '<div class="res"><div><div class="w">' + esc(v.winkel) + '</div><a href="' + esc(v.url || '#') + '" target="_blank" rel="noopener">' + esc((v.merk ? v.merk + ' ' : '') + v.naam) + '</a></div>' +
+          '<div class="pe">' + (v.prijs_per_eenheid_geschat != null ? '≈ ' + eur(v.prijs_per_eenheid_geschat, dec(v.eenheid)) + '<div class="w">/' + EENH[v.eenheid] + '</div>' : '–') + '</div>' +
+          '<div class="sub">' + (v.prijs ? eur(v.prijs, 2) : '') + (v.hoeveelheid ? ' · ' + esc(v.hoeveelheid) : '') +
+          ' · <button class="link" data-volg="' + v.id + '">Volgen</button></div></div>';
+      }
+    }
     $('#zoek').innerHTML = html;
+    VOORSTEL = Object.fromEntries(vs.map((v) => [v.id, v]));
   } catch (e) { msg('Fout: ' + e.message, true); }
 }
 $('#q').oninput = () => { clearTimeout(zoekTimer); zoekTimer = setTimeout(zoekNu, 250); };
