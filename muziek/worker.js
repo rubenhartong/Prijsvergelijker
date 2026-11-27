@@ -1,6 +1,22 @@
 // Draaitafel — kleine worker: serveert de app en zoekt op YouTube zonder API-sleutel
 // door de zoekpagina op te halen en ytInitialData uit te lezen.
 
+import indexHtml from "./public/index.html";
+import iconSvg from "./public/icon.svg";
+import manifest from "./public/manifest.webmanifest";
+
+const SW = `self.addEventListener("install", () => self.skipWaiting());
+self.addEventListener("activate", (e) => e.waitUntil(self.clients.claim()));
+self.addEventListener("fetch", () => {});`;
+
+const FILES = {
+  "/": [indexHtml, "text/html; charset=utf-8"],
+  "/index.html": [indexHtml, "text/html; charset=utf-8"],
+  "/icon.svg": [iconSvg, "image/svg+xml"],
+  "/manifest.webmanifest": [manifest, "application/manifest+json"],
+  "/sw.js": [SW, "text/javascript"],
+};
+
 const UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36";
 
@@ -69,6 +85,8 @@ export default {
         return json({ error: String(e.message || e) }, 502);
       }
     }
-    return env.ASSETS.fetch(request);
+    const f = FILES[url.pathname];
+    if (f) return new Response(f[0], { headers: { "Content-Type": f[1], "Cache-Control": "public, max-age=300" } });
+    return new Response("Niet gevonden", { status: 404 });
   },
 };

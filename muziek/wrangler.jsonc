@@ -3,6 +3,6 @@
   "name": "draaitafel",
   "main": "worker.js",
   "compatibility_date": "2026-11-01",
-  // De app zelf (public/) wordt als statische bestanden geserveerd; alleen /api/* gaat langs de worker.
-  "assets": { "directory": "./public", "binding": "ASSETS", "run_worker_first": ["/api/*"] }
+  // De bestanden in public/ worden als tekst in de worker meegebundeld (geen aparte asset-upload nodig).
+  "rules": [{ "type": "Text", "globs": ["**/*.html", "**/*.svg", "**/*.webmanifest"], "fallthrough": true }]
 }

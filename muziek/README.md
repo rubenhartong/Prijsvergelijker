@@ -12,7 +12,7 @@ Eigen muziekapp in de stijl van een streamingdienst, met nummers van YouTube.
 
 ## Opzet
 ```
-worker.js          Cloudflare Worker: /api/search haalt YouTube-zoekresultaten op (1 uur gecachet)
+worker.js          Cloudflare Worker: serveert de app (public/ wordt meegebundeld) en /api/search (1 uur gecachet)
 public/index.html  de hele app (HTML/CSS/JS, geen build-stap)
 public/*           icoon, manifest, service worker
 ```
@@ -22,7 +22,7 @@ public/*           icoon, manifest, service worker
 cd muziek
 npx wrangler deploy
 ```
-Daarna draait hij op `https://draaitafel.<jouw-subdomein>.workers.dev`.
+Live: https://draaitafel.overtime-web.workers.dev
 
 Lokaal proberen: `npx wrangler dev` in deze map.
 
