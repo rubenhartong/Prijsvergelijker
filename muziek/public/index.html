@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#121216">
+<meta name="build" content="__BUILD__">
 <title>Claude Music</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
@@ -1396,7 +1397,25 @@ document.addEventListener('keydown', e => {
 addEventListener('hashchange', render);
 render(); updateNowUI(); updatePlayUI();
 if (syncCode) pull();
-if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(()=>{});
+if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js', { updateViaCache:'none' }).then(r => r.update()).catch(()=>{});
+// automatisch bijwerken: is er een nieuwe versie online, dan ververst de app zichzelf (niet midden in een nummer)
+const BUILD = document.querySelector('meta[name=build]').content;
+let updateReady = false;
+async function checkUpdate(){
+  if (BUILD.startsWith('__')) return;
+  try{
+    const d = await (await fetch('api/version', { cache:'no-store' })).json();
+    if (d.build && d.build !== BUILD){
+      updateReady = true;
+      if (!playing){ if (syncCode && syncDirty) await push(true); location.reload(); }
+      else toast('Er is een nieuwe versie — wordt geladen na dit nummer');
+    }
+  }catch{}
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkUpdate(); });
+setInterval(() => { if (updateReady && !playing) location.reload(); }, 5000);
+setInterval(checkUpdate, 10 * 60 * 1000);
+checkUpdate();
 </script>
 </body>
 </html>

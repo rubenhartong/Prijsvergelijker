@@ -5,16 +5,27 @@ import indexHtml from "./public/index.html";
 import iconSvg from "./public/icon.svg";
 import manifest from "./public/manifest.webmanifest";
 
-const SW = `self.addEventListener("install", () => self.skipWaiting());
-self.addEventListener("activate", (e) => e.waitUntil(self.clients.claim()));
-self.addEventListener("fetch", () => {});`;
+// Versie = hash van de app; de pagina vergelijkt die met /api/version en ververst zichzelf bij een update.
+let h = 2166136261;
+for (let i = 0; i < indexHtml.length; i++) { h ^= indexHtml.charCodeAt(i); h = Math.imul(h, 16777619); }
+const BUILD = (h >>> 0).toString(36);
+const page = indexHtml.replace("__BUILD__", BUILD);
 
+// Service worker: pagina altijd vers van het netwerk halen (nooit een oude kopie tonen).
+const SW = `const V = "${BUILD}";
+self.addEventListener("install", () => self.skipWaiting());
+self.addEventListener("activate", (e) => e.waitUntil(caches.keys().then((ks) => Promise.all(ks.map((k) => caches.delete(k)))).then(() => self.clients.claim())));
+self.addEventListener("fetch", (e) => {
+  if (e.request.mode === "navigate") e.respondWith(fetch(e.request, { cache: "no-store" }).catch(() => fetch(e.request)));
+});`;
+
+const NOCACHE = "no-cache, no-store, must-revalidate";
 const FILES = {
-  "/": [indexHtml, "text/html; charset=utf-8"],
-  "/index.html": [indexHtml, "text/html; charset=utf-8"],
-  "/icon.svg": [iconSvg, "image/svg+xml"],
-  "/manifest.webmanifest": [manifest, "application/manifest+json"],
-  "/sw.js": [SW, "text/javascript"],
+  "/": [page, "text/html; charset=utf-8", NOCACHE],
+  "/index.html": [page, "text/html; charset=utf-8", NOCACHE],
+  "/icon.svg": [iconSvg, "image/svg+xml", "public, max-age=86400"],
+  "/manifest.webmanifest": [manifest, "application/manifest+json", "public, max-age=3600"],
+  "/sw.js": [SW, "text/javascript", NOCACHE],
 };
 
 import { searchYouTube, videoInfo } from "./youtube.js";
@@ -45,6 +56,7 @@ async function cached(ctx, name, maxAge, load, ok) {
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
+    if (url.pathname === "/api/version") return json({ build: BUILD }, 200, { "Cache-Control": NOCACHE });
     if (url.pathname === "/api/search") {
       const q = (url.searchParams.get("q") || "").trim().slice(0, 200);
       const recent = url.searchParams.get("recent") === "1";
@@ -73,7 +85,7 @@ export default {
       return json({ error: "methode" }, 405);
     }
     const f = FILES[url.pathname];
-    if (f) return new Response(f[0], { headers: { "Content-Type": f[1], "Cache-Control": "public, max-age=300" } });
+    if (f) return new Response(f[0], { headers: { "Content-Type": f[1], "Cache-Control": f[2] } });
     return new Response("Niet gevonden", { status: 404 });
   },
 };
