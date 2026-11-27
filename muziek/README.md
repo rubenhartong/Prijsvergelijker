@@ -5,6 +5,9 @@ Eigen muziekapp in de stijl van een streamingdienst, met nummers van YouTube.
 - Zoeken naar nummers/artiesten (of plak een YouTube-link) — geen API-sleutel nodig
 - Afspelen met wachtrij, volgende/vorige, shuffle, herhalen (alles / 1 nummer), spoelen, volume
 - Leuke nummers (hartje), eigen afspeellijsten maken/hernoemen/verwijderen, onlangs afgespeeld
+- ⊕-knop bij elk nummer/elke kaart en in de spelerbalk: kiezer met al je lijsten (aanvinken/uitvinken, zoeken, direct nieuwe lijst maken)
+- Op een afspeellijst zelf: zoeken + aanbevolen nummers met één klik toevoegen
+- Sets, genres, zoekresultaten en de wachtrij in één keer opslaan als afspeellijst; slepen naar een lijst in de zijbalk (desktop)
 - **Live sets**: Defqon.1 2026, Korsakoff, Sefa, Dr. Peacock, Harmony of Hardcore, Qlimax, hardstyle mixes + eigen artiesten/festivals toevoegen
 - Lange sets onthouden waar je was ("Verder luisteren"), slaaptimer (maantje bij Nu speelt)
 - "Omdat je X luistert": rijen op basis van wat je het meest afspeelt en leuk vindt

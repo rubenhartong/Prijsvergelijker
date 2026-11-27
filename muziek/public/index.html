@@ -126,6 +126,38 @@ h2:first-child{margin-top:4px}
 .tr .like,.tr .more{opacity:0;color:var(--muted)}
 .tr:hover .like,.tr:hover .more,.tr .like.on{opacity:1}
 .tr .like.on{color:var(--accent)}
+.tr .addb svg{width:20px;height:20px}
+.card .cadd{position:absolute;right:8px;top:8px;width:30px;height:30px;border-radius:50%;background:rgba(0,0,0,.6);display:grid;place-items:center;color:#fff;opacity:0;transition:.15s}
+.card:hover .cadd,.card .cadd.on{opacity:1}
+.card .cadd.on{color:var(--accent)}
+.card .cadd svg{width:22px;height:22px}
+#barAdd.on{color:var(--accent)}
+.sheet-scrim{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:16px}
+.sheet{background:#202028;border-radius:14px;width:100%;max-width:440px;max-height:min(640px,86vh);display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.6)}
+.sheet .sh-top{display:flex;gap:12px;align-items:center;padding:16px 16px 10px}
+.sheet .sh-top img{width:48px;height:48px;border-radius:6px;object-fit:cover;flex:none}
+.sheet .sh-top .t{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sheet .sh-top .a{font-size:13px;color:var(--muted)}
+.sheet .sh-search{margin:0 16px 8px;display:flex;align-items:center;gap:8px;background:#2f2f3a;border-radius:8px;padding:0 12px;height:44px}
+.sheet .sh-search svg{width:18px;height:18px;color:var(--muted);flex:none}
+.sheet .sh-search input{flex:1;background:none;border:0;outline:0;font-size:16px;min-width:0}
+.sheet .sh-list{overflow:auto;padding:0 8px 8px;flex:1}
+.sh-row{display:flex;align-items:center;gap:12px;width:100%;padding:8px;border-radius:8px;text-align:left}
+.sh-row:hover{background:var(--hover)}
+.sh-row .cov{width:44px;height:44px;border-radius:6px;flex:none}
+.sh-row .nm{flex:1;min-width:0;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sh-row .nm small{display:block;font-weight:400;color:var(--dim);font-size:12px}
+.sh-row .ck{width:24px;height:24px;border-radius:50%;border:2px solid var(--dim);display:grid;place-items:center;flex:none;color:#111}
+.sh-row .ck svg{width:14px;height:14px}
+.sh-row.on .ck{background:var(--accent);border-color:var(--accent)}
+.sh-new .cov{background:#3a3a46;display:grid;place-items:center;font-size:24px;color:var(--text)}
+.sheet .sh-foot{padding:12px 16px calc(12px + env(safe-area-inset-bottom));display:flex;justify-content:flex-end;border-top:1px solid var(--line)}
+@media (max-width:720px){.sheet-scrim{align-items:flex-end;padding:0}.sheet{border-radius:14px 14px 0 0;max-height:88vh;max-width:none}}
+.pl-item.drop{outline:2px solid var(--accent);background:var(--panel2)}
+.add-res .tr{grid-template-columns:minmax(0,1fr) auto}
+.add-res .tr .addbtn{border:1px solid var(--dim);border-radius:999px;padding:6px 14px;font-weight:700;font-size:13px;color:var(--text)}
+.add-res .tr .addbtn:hover{border-color:var(--text);transform:scale(1.04)}
+.add-res .tr .addbtn.on{border-color:var(--accent);color:var(--accent)}
 .tr .like svg,.tr .more svg{width:18px;height:18px;margin:auto}
 .tr .like:hover,.tr .more:hover{color:var(--text)}
 .eq{display:inline-flex;gap:2px;align-items:flex-end;height:14px}
@@ -247,6 +279,7 @@ h2:first-child{margin-top:4px}
   .mnav svg{width:24px;height:24px}
   .thead{display:none}
   .tr{grid-template-columns:minmax(0,1fr) 36px 36px;padding:0 4px}
+  .card .cadd{opacity:1}
   .tr .n,.tr .d{display:none}
   .tr .like{opacity:1}
   .tr .more{opacity:1}
@@ -289,7 +322,7 @@ h2:first-child{margin-top:4px}
       <div class="big-a" id="npArtist"></div>
     </div>
     <div id="npTracks"></div>
-    <div class="qh"><span>Hierna</span><span style="display:flex;gap:14px"><button id="btnAuto" onclick="toggleAutoplay()"></button><button onclick="clearUpcoming()">Wissen</button></span></div>
+    <div class="qh"><span>Hierna</span><span style="display:flex;gap:14px"><button onclick="saveAsPlaylist(queue, cur() && cur().artist ? cur().artist + ' mix' : '')" title="Wachtrij opslaan als afspeellijst">Opslaan</button><button id="btnAuto" onclick="toggleAutoplay()"></button><button onclick="clearUpcoming()">Wissen</button></span></div>
     <div id="npQueue"></div>
   </section>
 
@@ -298,6 +331,7 @@ h2:first-child{margin-top:4px}
       <img id="barImg" alt="" src="data:image/gif;base64,R0lGODlhAQABAAAAACw=">
       <div><div class="t" id="barTitle">Kies een nummer</div><div class="a" id="barArtist">Zoek iets om te beginnen</div></div>
       <button class="iconbtn" id="barLike" title="Vind ik leuk" onclick="event.stopPropagation();toggleLike(cur())"></button>
+      <button class="iconbtn addb" id="barAdd" title="Toevoegen aan afspeellijst" onclick="event.stopPropagation();cur()&&openPicker([cur()])"></button>
     </div>
     <div class="ctrl">
       <div class="btns">
@@ -342,6 +376,9 @@ const I = {
   np:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="m10 9 4 2-4 2z" fill="currentColor"/><path d="M7 21h10"/></svg>',
   x:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>',
   clock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16" style="margin-left:auto"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+  add:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9.5"/><path d="M12 7.5v9M7.5 12h9" stroke-linecap="round"/></svg>',
+  added:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5" fill="currentColor"/><path d="m7.5 12.3 3 3 6-6.3" fill="none" stroke="#111" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>',
   search:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>',
 };
 const eqHTML = '<span class="eq"><i></i><i></i><i></i></span>';
@@ -395,6 +432,7 @@ const likedCover = `<div class="cov" style="background:linear-gradient(135deg,#f
 
 function toast(msg){
   const el = document.createElement('div'); el.className='toast'; el.textContent=msg;
+  if (document.querySelector('.sheet-scrim')){ el.style.bottom = 'auto'; el.style.top = 'calc(16px + env(safe-area-inset-top))'; }
   document.body.appendChild(el); setTimeout(()=>el.remove(), 2600);
 }
 
@@ -652,6 +690,8 @@ function updateNowUI(){
   $('#barLike').style.visibility = t ? 'visible' : 'hidden';
   $('#barLike').innerHTML = isLiked(t) ? I.heartOn : I.heart;
   $('#barLike').classList.toggle('on', isLiked(t));
+  $('#barAdd').style.visibility = t ? 'visible' : 'hidden';
+  $('#barAdd').innerHTML = isSaved(t) ? I.added : I.add; $('#barAdd').classList.toggle('on', !!isSaved(t));
   renderQueue(); markPlaying();
 }
 function updatePlayUI(){
@@ -731,7 +771,7 @@ function prompt2(title, value = '', okText = 'Opslaan'){
   });
 }
 async function newPlaylist(withTrack){
-  const name = await prompt2('Nieuwe afspeellijst', `Mijn afspeellijst #${playlists.length + 1}`, 'Maken');
+  const name = await prompt2('Geef je afspeellijst een naam', `Mijn afspeellijst #${playlists.length + 1}`, 'Maken');
   if (!name) return;
   const pl = { id: uid(), name, tracks: withTrack ? [clean(withTrack)] : [], created: Date.now() };
   playlists.push(pl); store.set('playlists', playlists); renderSide();
@@ -740,7 +780,7 @@ async function newPlaylist(withTrack){
 function addToPlaylist(plId, t){
   const pl = playlists.find(p => p.id === plId); if (!pl) return;
   if (pl.tracks.some(x => x.id === t.id)){ toast('Staat al in ' + pl.name); return; }
-  pl.tracks.push(clean(t)); store.set('playlists', playlists); renderSide(); toast('Toegevoegd aan ' + pl.name);
+  pl.tracks.push({ ...clean(t), auto: undefined }); pl.used = Date.now(); store.set('playlists', playlists); renderSide(); refreshSaved(); toast('Toegevoegd aan ' + pl.name);
   if (route().id === plId) render();
 }
 function removeFromPlaylist(plId, idx){
@@ -755,6 +795,100 @@ function deletePlaylist(id){
   const pl = playlists.find(p => p.id === id);
   if (!confirm(`“${pl.name}” verwijderen?`)) return;
   playlists = playlists.filter(p => p.id !== id); store.set('playlists', playlists); renderSide(); location.hash = '#/bibliotheek';
+}
+
+/* ---------- toevoegen aan afspeellijst (kiezer) ---------- */
+const isSaved = t => t && (isLiked(t) || playlists.some(p => p.tracks.some(x => x.id === t.id)));
+function refreshSaved(){
+  document.querySelectorAll('[data-add]').forEach(b => {
+    const on = !!isSaved({ id: b.dataset.add }); b.classList.toggle('on', on); b.innerHTML = on ? I.added : I.add;
+  });
+  updateNowUI();
+}
+function openPicker(tracks){
+  tracks = tracks.filter(Boolean).map(clean); if (!tracks.length) return;
+  closeMenu();
+  const many = tracks.length > 1, t0 = tracks[0];
+  const s = document.createElement('div'); s.className = 'sheet-scrim';
+  s.innerHTML = `<div class="sheet" role="dialog" aria-label="Toevoegen aan afspeellijst">
+    <div class="sh-top"><img src="${thumb(t0.id,'mqdefault')}" alt=""><div style="min-width:0"><div class="t">${many ? tracks.length + ' nummers' : esc(t0.title)}</div><div class="a">${many ? 'Toevoegen aan afspeellijst' : esc(t0.artist)}</div></div></div>
+    <label class="sh-search">${I.search}<input placeholder="Zoek of maak een afspeellijst" autocomplete="off" enterkeyhint="done"></label>
+    <div class="sh-list"></div>
+    <div class="sh-foot"><button class="btn">Klaar</button></div></div>`;
+  document.body.appendChild(s);
+  const inp = s.querySelector('input'), list = s.querySelector('.sh-list');
+  const has = l => tracks.every(t => l.some(x => x.id === t.id));
+  const draw = () => {
+    const q = inp.value.trim(), ql = q.toLowerCase();
+    const pls = [...playlists].sort((a, b) => (b.used || b.created || 0) - (a.used || a.created || 0)).filter(p => !ql || p.name.toLowerCase().includes(ql));
+    const exact = playlists.some(p => p.name.toLowerCase() === ql);
+    list.innerHTML =
+      `<button class="sh-row sh-new" data-new="1"><div class="cov">+</div><div class="nm">${q && !exact ? `Nieuwe afspeellijst “${esc(q)}”` : 'Nieuwe afspeellijst'}</div></button>` +
+      (!ql || 'leuke nummers'.includes(ql) ? `<button class="sh-row ${has(likes)?'on':''}" data-like="1">${likedCover}<div class="nm">Leuke nummers<small>${likes.length} nummers</small></div><span class="ck">${I.check}</span></button>` : '') +
+      pls.map(p => `<button class="sh-row ${has(p.tracks)?'on':''}" data-pl="${p.id}">${plCover(p)}<div class="nm">${esc(p.name)}<small>${p.tracks.length} nummers</small></div><span class="ck">${I.check}</span></button>`).join('');
+  };
+  const done = () => { s.remove(); refreshSaved(); renderSide(); const r = route(); if (r.name === 'lijst' || r.name === 'liked') render(); };
+  list.addEventListener('click', e => {
+    const b = e.target.closest('.sh-row'); if (!b) return;
+    if (b.dataset.new){
+      const name = inp.value.trim() && !playlists.some(p => p.name.toLowerCase() === inp.value.trim().toLowerCase()) ? inp.value.trim() : null;
+      if (!name){ inp.value = ''; inp.placeholder = 'Typ de naam van je nieuwe afspeellijst'; inp.focus(); return; }
+      const pl = { id: uid(), name, tracks: tracks.map(t => ({ ...t, auto: undefined })), created: Date.now(), used: Date.now() };
+      playlists.push(pl); store.set('playlists', playlists); inp.value = ''; draw(); renderSide();
+      toast(`Afspeellijst “${name}” gemaakt`); return;
+    }
+    if (b.dataset.like){
+      if (has(likes)) likes = likes.filter(x => !tracks.some(t => t.id === x.id));
+      else likes = [...tracks.filter(t => !likes.some(x => x.id === t.id)), ...likes];
+      store.set('likes', likes); draw(); return;
+    }
+    const pl = playlists.find(p => p.id === b.dataset.pl); if (!pl) return;
+    if (has(pl.tracks)){ pl.tracks = pl.tracks.filter(x => !tracks.some(t => t.id === x.id)); toast('Verwijderd uit ' + pl.name); }
+    else { tracks.forEach(t => { if (!pl.tracks.some(x => x.id === t.id)) pl.tracks.push({ ...t, auto: undefined }); }); pl.used = Date.now(); toast('Toegevoegd aan ' + pl.name); }
+    store.set('playlists', playlists); draw();
+  });
+  inp.addEventListener('input', draw);
+  inp.addEventListener('keydown', e => {
+    if (e.key === 'Enter'){ e.preventDefault(); const first = list.querySelector(inp.value.trim() ? '.sh-row:not(.sh-new)' : '.sh-new'); const nw = list.querySelector('.sh-new');
+      (inp.value.trim() && !first ? nw : (first || nw)).click(); }
+    if (e.key === 'Escape') done();
+  });
+  s.addEventListener('click', e => { if (e.target === s) done(); });
+  s.querySelector('.sh-foot .btn').onclick = done;
+  draw();
+  if (innerWidth > 720) inp.focus();
+}
+// slepen: nummer op een afspeellijst in de zijbalk laten vallen
+function dragTrack(ev, key, i){
+  const t = lists[key] && lists[key].tracks[i]; if (!t) return;
+  ev.dataTransfer.setData('application/x-cm-track', JSON.stringify(clean(t)));
+  ev.dataTransfer.setData('text/plain', 'https://www.youtube.com/watch?v=' + t.id);
+  ev.dataTransfer.effectAllowed = 'copy';
+}
+document.addEventListener('dragover', e => {
+  const it = e.target.closest && e.target.closest('.pl-item[data-drop]');
+  document.querySelectorAll('.pl-item.drop').forEach(x => x !== it && x.classList.remove('drop'));
+  if (it && e.dataTransfer.types.includes('application/x-cm-track')){ e.preventDefault(); it.classList.add('drop'); }
+});
+document.addEventListener('drop', e => {
+  const it = e.target.closest && e.target.closest('.pl-item[data-drop]');
+  document.querySelectorAll('.pl-item.drop').forEach(x => x.classList.remove('drop'));
+  if (!it) return;
+  const raw = e.dataTransfer.getData('application/x-cm-track'); if (!raw) return;
+  e.preventDefault();
+  const t = JSON.parse(raw);
+  if (it.dataset.drop === 'liked'){ if (!isLiked(t)) toggleLike(t); else toast('Staat al in Leuke nummers'); }
+  else addToPlaylist(it.dataset.drop, t);
+  refreshSaved();
+});
+function saveAsPlaylist(tracks, name){
+  tracks = tracks.filter(Boolean).map(t => ({ ...clean(t), auto: undefined })); if (!tracks.length) return;
+  prompt2('Opslaan als afspeellijst', name || 'Mijn afspeellijst #' + (playlists.length + 1), 'Opslaan').then(n => {
+    if (!n) return;
+    const pl = { id: uid(), name: n, tracks: [...new Map(tracks.map(t => [t.id, t])).values()], created: Date.now(), used: Date.now() };
+    playlists.push(pl); store.set('playlists', playlists); renderSide(); refreshSaved();
+    toast(`“${n}” opgeslagen`);
+  });
 }
 
 /* ---------- contextmenu ---------- */
@@ -781,10 +915,8 @@ function trackMenu(ev, t, plId, idx){
   const items = [
     { text:'Hierna afspelen', fn:() => addToQueue(t, true) },
     { text:'Aan wachtrij toevoegen', fn:() => addToQueue(t) },
+    { text:'Toevoegen aan afspeellijst…', fn:() => openPicker([t]) },
     { text: isLiked(t) ? 'Verwijderen uit Leuke nummers' : 'Opslaan in Leuke nummers', fn:() => toggleLike(t) },
-    '-', { label:'Toevoegen aan afspeellijst' },
-    { text:'+ Nieuwe afspeellijst', fn:() => newPlaylist(t) },
-    ...playlists.filter(p => p.id !== plId).map(p => ({ text:p.name, fn:() => addToPlaylist(p.id, t) })),
   ];
   if (plId) items.push('-', { text:'Verwijderen uit deze afspeellijst', fn:() => removeFromPlaylist(plId, idx) });
   items.push('-', { text:'Openen op YouTube', fn:() => open('https://www.youtube.com/watch?v=' + t.id, '_blank') });
@@ -799,10 +931,10 @@ function trackTable(key, tracks, { ctx, plId, header = true } = {}){
   lists[key] = { tracks, ctx, plId };
   if (!tracks.length) return '';
   return `<div class="tracks">${header ? `<div class="thead"><span style="text-align:center">#</span><span>Titel</span><span></span><span style="display:flex">${I.clock}</span><span></span></div>` : ''}
-    ${tracks.map((t, i) => `<div class="tr" data-id="${t.id}" data-ctx="${esc(ctx||'')}" data-n="${i+1}" onclick="playFrom('${key}',${i})" oncontextmenu="menuFrom(event,'${key}',${i})">
+    ${tracks.map((t, i) => `<div class="tr" draggable="true" ondragstart="dragTrack(event,'${key}',${i})" data-id="${t.id}" data-ctx="${esc(ctx||'')}" data-n="${i+1}" onclick="playFrom('${key}',${i})" oncontextmenu="menuFrom(event,'${key}',${i})">
       <div class="n"><span class="num">${i+1}</span><button class="pi" onclick="event.stopPropagation();playFrom('${key}',${i})" title="Afspelen">${I.play}</button></div>
       <div class="info"><img src="${thumb(t.id,'mqdefault')}" alt="" loading="lazy"><div style="min-width:0"><div class="tt">${esc(t.title)}</div><div class="ta">${esc(t.artist)}</div></div></div>
-      <button class="like ${isLiked(t)?'on':''}" title="Vind ik leuk" onclick="event.stopPropagation();toggleLike(lists['${key}'].tracks[${i}])">${isLiked(t)?I.heartOn:I.heart}</button>
+      <button class="like addb ${isSaved(t)?'on':''}" data-add="${t.id}" title="Toevoegen aan afspeellijst" onclick="event.stopPropagation();openPicker([lists['${key}'].tracks[${i}]])">${isSaved(t)?I.added:I.add}</button>
       <div class="d">${esc(t.duration || '')}</div>
       <button class="more" title="Meer" onclick="menuFrom(event,'${key}',${i})">${I.more}</button>
     </div>`).join('')}</div>`;
@@ -886,8 +1018,8 @@ function render(){
 }
 
 function card(t, key, i){
-  return `<button class="card" onclick="playFrom('${key}',${i})" oncontextmenu="menuFrom(event,'${key}',${i})">
-    <div class="img"><img src="${thumb(t.id)}" alt="" loading="lazy">${t.set ? `<span class="badge">${esc(t.duration)}</span>` : ''}${t.set && positions[t.id] && t.seconds ? `<span class="resume"><i style="width:${Math.min(100, positions[t.id]/t.seconds*100)}%"></i></span>` : ''}<span class="fab">${I.play}</span></div>
+  return `<button class="card" draggable="true" ondragstart="dragTrack(event,'${key}',${i})" onclick="playFrom('${key}',${i})" oncontextmenu="menuFrom(event,'${key}',${i})">
+    <div class="img"><img src="${thumb(t.id)}" alt="" loading="lazy">${t.set ? `<span class="badge">${esc(t.duration)}</span>` : ''}${t.set && positions[t.id] && t.seconds ? `<span class="resume"><i style="width:${Math.min(100, positions[t.id]/t.seconds*100)}%"></i></span>` : ''}<span class="fab">${I.play}</span><span class="cadd addb ${isSaved(t)?'on':''}" data-add="${t.id}" role="button" title="Toevoegen aan afspeellijst" onclick="event.stopPropagation();openPicker([lists['${key}'].tracks[${i}]])">${isSaved(t)?I.added:I.add}</span></div>
     <div class="t">${esc(t.title)}</div><div class="s">${esc(t.artist)}</div></button>`;
 }
 
@@ -959,6 +1091,7 @@ async function renderSet(main, name){
   main.innerHTML = `<div class="hero" style="--hero:${S[2]}"><div class="cov" style="background:${S[2]};display:grid;place-items:center;font-size:90px">${S[3]}</div>
     <div style="min-width:0"><div class="kind">Live sets</div><h1>${esc(S[0])}</h1><div class="meta">Volledige sets van YouTube</div></div></div>
     <div class="actions"><button class="bigplay" id="splay" title="Afspelen">${I.play}</button>
+      <button class="btn ghost" onclick="lists.set && saveAsPlaylist(lists.set.tracks, ${esc(JSON.stringify(S[0]))})">Opslaan als afspeellijst</button>
       ${S[4] ? `<button class="btn ghost" onclick="removeCustomSet(${esc(JSON.stringify(S[0]))})">Verwijderen</button>` : ''}</div>
     <div class="main-inner" style="padding-top:0" id="setres"><div class="spinner"></div></div>`;
   try{
@@ -973,7 +1106,8 @@ async function renderSet(main, name){
 function renderHome(main){
   const quick = [
     `<a href="#/leuk">${likedCover}<span>Leuke nummers</span></a>`,
-    ...playlists.slice(0,7).map(p => `<a href="#/lijst/${p.id}">${plCover(p)}<span>${esc(p.name)}</span></a>`),
+    ...playlists.slice(0,6).map(p => `<a href="#/lijst/${p.id}">${plCover(p)}<span>${esc(p.name)}</span></a>`),
+    `<a href="javascript:void 0" onclick="newPlaylist()"><div class="cov" style="background:#2f2f3a;display:grid;place-items:center;font-size:28px;font-weight:300">+</div><span>Nieuwe afspeellijst</span></a>`,
   ];
   lists.recent = { tracks: recent, ctx:'recent' };
   main.innerHTML = `<div class="main-inner">
@@ -1024,7 +1158,7 @@ async function doSearch(q){
         <img src="${thumb(top.id)}" style="width:110px;height:110px;border-radius:8px;object-fit:cover;flex:none" alt="">
         <div style="min-width:0"><div class="t" style="font-size:24px;letter-spacing:-.4px">${esc(top.title)}</div><div class="s" style="font-size:14px">${top.set ? 'Live set · ' + esc(top.duration) : 'Nummer'} · ${esc(top.artist)}</div></div>
       </button>
-      <h2>Nummers</h2>
+      <div class="sec-h" style="align-items:center"><h2>${searchMode === 'songs' ? 'Nummers' : 'Live sets &amp; mixes'}</h2><a href="javascript:void 0" onclick="saveAsPlaylist(lists.sres.tracks, ${esc(JSON.stringify(q))})">Alles opslaan als afspeellijst</a></div>
       ${trackTable('sres', res, { ctx: 'search:' + q, header:false })}
     </div>`;
     markPlaying();
@@ -1037,7 +1171,8 @@ async function renderGenre(main, g){
   const G = GENRES.find(x => x[0] === g) || [g, '#444', '🎵', g];
   main.innerHTML = `<div class="hero" style="--hero:${G[1]}"><div class="cov" style="background:${G[1]};display:grid;place-items:center;font-size:90px">${G[2]}</div>
     <div><div class="kind">Genre</div><h1>${esc(G[0])}</h1><div class="meta">Van YouTube</div></div></div>
-    <div class="actions"><button class="bigplay" id="gplay" title="Afspelen">${I.play}</button></div>
+    <div class="actions"><button class="bigplay" id="gplay" title="Afspelen">${I.play}</button>
+      <button class="btn ghost" onclick="lists.genre && saveAsPlaylist(lists.genre.tracks, ${esc(JSON.stringify(G[0]))})">Opslaan als afspeellijst</button></div>
     <div class="main-inner" style="padding-top:0" id="gres"><div class="spinner"></div></div>`;
   try{
     const res = await search(G[3]);
@@ -1059,11 +1194,65 @@ function renderCollection(main, c){
       ${c.plId ? `<button class="iconbtn" title="Meer" onclick="plMenu(event,'${c.plId}')">${I.more}</button>` : ''}
     </div>
     <div class="main-inner" style="padding-top:0">
-      ${c.tracks.length ? trackTable('coll', c.tracks, { ctx:c.ctx, plId:c.plId }) :
-        `<div class="empty"><div class="big">${c.plId ? 'Laten we iets zoeken voor je afspeellijst' : 'Nummers die je leuk vindt, verschijnen hier'}</div>
-        ${c.plId ? 'Zoek een nummer en kies <b>⋯ → Toevoegen aan afspeellijst</b>.' : 'Tik op het hartje bij een nummer om het op te slaan.'}<br><br><a class="btn" href="#/zoeken">Nummers zoeken</a></div>`}
+      ${c.tracks.length ? trackTable('coll', c.tracks, { ctx:c.ctx, plId:c.plId }) : c.plId ? '' :
+        `<div class="empty"><div class="big">Nummers die je leuk vindt, verschijnen hier</div>Tik op ${I.add.replace('<svg','<svg width="18" height="18" style="display:inline;vertical-align:-4px"')} of het hartje bij een nummer om het op te slaan.<br><br><a class="btn" href="#/zoeken">Nummers zoeken</a></div>`}
+      ${c.plId ? `<div id="addPanel"></div>` : ''}
     </div>`;
   updatePlayUI(); markPlaying();
+  if (c.plId && !c.keepAdd) renderAddPanel(c.plId);
+}
+/* nummers zoeken en toevoegen, direct op de afspeellijst-pagina */
+let addSeq = 0, addQuery = '';
+function renderAddPanel(plId){
+  const el = $('#addPanel'); const pl = playlists.find(p => p.id === plId); if (!el || !pl) return;
+  el.innerHTML = `<h2>${pl.tracks.length ? 'Nummers toevoegen' : 'Laten we iets zoeken voor je afspeellijst'}</h2>
+    <div class="searchbox" style="position:static;margin:0 0 6px;padding:0"><label>${I.search}<input id="addq" type="search" placeholder="Zoek nummers of live sets" autocomplete="off" enterkeyhint="search"></label></div>
+    <div id="addRes" class="add-res"></div>`;
+  const inp = $('#addq'); inp.value = addQuery;
+  let tmr;
+  inp.addEventListener('input', () => { clearTimeout(tmr); tmr = setTimeout(() => { addQuery = inp.value; fillAdd(plId); }, 350); });
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter'){ clearTimeout(tmr); addQuery = inp.value; fillAdd(plId); } });
+  if (!pl.tracks.length && innerWidth > 720) inp.focus();
+  fillAdd(plId);
+}
+async function fillAdd(plId){
+  const el = $('#addRes'); const pl = playlists.find(p => p.id === plId); if (!el || !pl) return;
+  const seq = ++addSeq, q = addQuery.trim();
+  el.innerHTML = '<div class="spinner"></div>';
+  let res = [], title = '';
+  try{
+    if (q){ res = await search(q); title = ''; }
+    else {
+      // aanbevolen: vergelijkbaar met de laatste nummers in de lijst (of wat je onlangs luisterde)
+      const seeds = (pl.tracks.length ? pl.tracks.slice(-3) : recent.slice(0, 3));
+      const infos = await Promise.all(seeds.map(t => getInfo(t.id)));
+      const seen = new Set(pl.tracks.map(t => t.id)); const mix = [];
+      for (let i = 0; i < 20; i++) for (const inf of infos){ const r = inf.related[i]; if (r && !seen.has(r.id)){ seen.add(r.id); mix.push(clean(r)); } }
+      if (!pl.tracks.length) recent.forEach(t => { if (!seen.has(t.id)){ seen.add(t.id); mix.unshift(t); } });
+      res = mix.slice(0, 20); title = seeds.length ? 'Aanbevolen' : '';
+    }
+  }catch(e){ if (seq === addSeq) el.innerHTML = `<div class="empty">${esc(e.message)}</div>`; return; }
+  if (seq !== addSeq) return;
+  lists.addr = { tracks: res, ctx: 'add' };
+  const inPl = t => pl.tracks.some(x => x.id === t.id);
+  el.innerHTML = (title ? `<div style="color:var(--muted);font-weight:700;margin:12px 0 6px">${title}</div>` : '') + (res.length ? `<div class="tracks">${res.map((t, i) => `
+    <div class="tr" data-id="${t.id}" onclick="playFrom('addr',${i})">
+      <div class="info"><img src="${thumb(t.id,'mqdefault')}" alt="" loading="lazy"><div style="min-width:0"><div class="tt">${esc(t.title)}</div><div class="ta">${esc(t.artist)}${t.set ? ' · ' + esc(t.duration) : ''}</div></div></div>
+      <button class="addbtn ${inPl(t)?'on':''}" onclick="event.stopPropagation();toggleInPlaylist('${plId}',${i},this)">${inPl(t) ? 'Toegevoegd' : 'Toevoegen'}</button>
+    </div>`).join('')}</div>` : (q ? `<div class="empty">Niets gevonden voor “${esc(q)}”</div>` : `<div class="empty">Typ hierboven wat je zoekt.</div>`));
+  markPlaying();
+}
+function toggleInPlaylist(plId, i, btn){
+  const pl = playlists.find(p => p.id === plId); const t = lists.addr.tracks[i]; if (!pl || !t) return;
+  const idx = pl.tracks.findIndex(x => x.id === t.id);
+  if (idx >= 0) pl.tracks.splice(idx, 1); else { pl.tracks.push({ ...clean(t), auto: undefined }); pl.used = Date.now(); }
+  store.set('playlists', playlists); renderSide();
+  btn.classList.toggle('on', idx < 0); btn.textContent = idx < 0 ? 'Toegevoegd' : 'Toevoegen';
+  // lijst bovenaan bijwerken zonder het zoekveld kwijt te raken
+  const main = $('#main'), y = main.scrollTop, q = $('#addq').value;
+  const c = { kind:'Afspeellijst', name:pl.name, cover:plCover(pl), tracks:pl.tracks, ctx:'pl:'+pl.id, plId:pl.id, hero:'#3d3550', keepAdd:true };
+  const keep = $('#addPanel'); keep.remove();
+  renderCollection(main, c); $('#addPanel').replaceWith(keep); $('#addq').value = q; main.scrollTop = y;
 }
 function plMenu(ev, id){
   ev.stopPropagation();
@@ -1100,8 +1289,8 @@ function renderLibrary(main){
 }
 function renderSide(){
   const r = route();
-  $('#sidePl').innerHTML = `<a class="pl-item ${r.name==='liked'?'active':''}" href="#/leuk">${likedCover}<div style="min-width:0"><div class="t">Leuke nummers</div><div class="s">${likes.length} nummers</div></div></a>` +
-    playlists.map(p => `<a class="pl-item ${r.id===p.id?'active':''}" href="#/lijst/${p.id}">${plCover(p)}<div style="min-width:0"><div class="t">${esc(p.name)}</div><div class="s">Afspeellijst · ${p.tracks.length}</div></div></a>`).join('');
+  $('#sidePl').innerHTML = `<a class="pl-item ${r.name==='liked'?'active':''}" data-drop="liked" href="#/leuk">${likedCover}<div style="min-width:0"><div class="t">Leuke nummers</div><div class="s">${likes.length} nummers</div></div></a>` +
+    playlists.map(p => `<a class="pl-item ${r.id===p.id?'active':''}" data-drop="${p.id}" href="#/lijst/${p.id}">${plCover(p)}<div style="min-width:0"><div class="t">${esc(p.name)}</div><div class="s">Afspeellijst · ${p.tracks.length}</div></div></a>`).join('');
 }
 
 /* ---------- synchroniseren tussen apparaten ---------- */
