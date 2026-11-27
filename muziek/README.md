@@ -12,12 +12,16 @@ Eigen muziekapp in de stijl van een streamingdienst, met nummers van YouTube.
 - Genres om te ontdekken (hardstyle, raw, hardcore, frenchcore, euphoric, uptempo, ...), bediening via vergrendelscherm/koptelefoon (Media Session)
 - Werkt op telefoon (installeerbaar als app via "Zet op beginscherm") en desktop
 - Sneltoetsen: spatie = afspelen/pauze, Shift+→/← = volgende/vorige, / = zoeken
-- Bibliotheek staat in de browser (localStorage); exporteren/importeren via Bibliotheek
+- Synchroniseren tussen apparaten met een code (Bibliotheek → Synchroniseren), opgeslagen in Cloudflare KV
+- Tracklist bij sets (uit YouTube-hoofdstukken of tijden in de beschrijving): huidig nummer in beeld, klik om te springen
+- Automatisch doorspelen met vergelijkbare nummers/sets als de wachtrij op is
+- "Nieuwe sets deze week" op het startscherm
+- Back-up exporteren/importeren via Bibliotheek
 
 ## Opzet
 ```
 youtube.js         zoekresultaten van YouTube uitlezen
-worker.js          Cloudflare Worker: serveert de app (public/ wordt meegebundeld) en /api/search (1 uur gecachet)
+worker.js          Cloudflare Worker: serveert de app (public/ wordt meegebundeld), /api/search, /api/video (tracklist + vergelijkbaar), /api/sync/<code> (KV)
 public/index.html  de hele app (HTML/CSS/JS, geen build-stap)
 public/*           icoon, manifest, service worker
 ```

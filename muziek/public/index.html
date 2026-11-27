@@ -76,6 +76,7 @@ h2:first-child{margin-top:4px}
 .card:hover{background:var(--panel2)}
 .card .img{aspect-ratio:1;border-radius:6px;overflow:hidden;margin-bottom:10px;position:relative;background:#222}
 .card img{width:100%;height:100%;object-fit:cover}
+.card .img>.cov{width:100%;height:100%}
 .card .t{font-weight:700;font-size:14px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .card .s{color:var(--muted);font-size:13px;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .card .fab{position:absolute;right:8px;bottom:8px;width:44px;height:44px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;opacity:0;transform:translateY(6px);transition:.15s;box-shadow:0 6px 14px rgba(0,0,0,.4)}
@@ -160,6 +161,15 @@ h2:first-child{margin-top:4px}
 .qitem:hover .x{opacity:1}
 .qitem .x:hover{color:var(--text)}
 .qitem>div{min-width:0}
+.tl{max-height:260px;overflow:auto;display:flex;flex-direction:column;margin-top:4px}
+.tl-i{display:flex;gap:10px;text-align:left;padding:6px 8px;border-radius:6px;font-size:13px;color:var(--muted)}
+.tl-i:hover{background:var(--hover);color:var(--text)}
+.tl-i.on{color:var(--accent);background:rgba(255,107,74,.1);font-weight:700}
+.tl-t{font-variant-numeric:tabular-nums;color:var(--dim);flex:none;width:52px}
+.tl-i.on .tl-t{color:var(--accent)}
+.sync-box{background:var(--panel2);border-radius:10px;padding:18px;margin-top:30px}
+.sync-box h3{margin:0 0 6px}
+.sync-code{font:700 22px ui-monospace,monospace;letter-spacing:2px;background:#0003;padding:8px 12px;border-radius:6px;display:inline-block;margin:8px 0;user-select:all}
 
 /* spelerbalk */
 .bar{grid-column:1/-1;display:grid;grid-template-columns:1fr 2fr 1fr;align-items:center;padding:0 8px;gap:16px}
@@ -278,7 +288,8 @@ h2:first-child{margin-top:4px}
       <div class="big-t" id="npTitle">—</div>
       <div class="big-a" id="npArtist"></div>
     </div>
-    <div class="qh"><span>Volgende in wachtrij</span><button onclick="clearUpcoming()">Wissen</button></div>
+    <div id="npTracks"></div>
+    <div class="qh"><span>Hierna</span><span style="display:flex;gap:14px"><button id="btnAuto" onclick="toggleAutoplay()"></button><button onclick="clearUpcoming()">Wissen</button></span></div>
     <div id="npQueue"></div>
   </section>
 
@@ -338,8 +349,12 @@ const eqHTML = '<span class="eq"><i></i><i></i><i></i></span>';
 /* ---------- opslag ---------- */
 const store = {
   get(k, d){ try{ const v = localStorage.getItem('dt.'+k); return v ? JSON.parse(v) : d; }catch{ return d; } },
-  set(k, v){ try{ localStorage.setItem('dt.'+k, JSON.stringify(v)); }catch{} },
+  set(k, v){ try{ localStorage.setItem('dt.'+k, JSON.stringify(v)); }catch{} if (SYNC_KEYS.includes(k)) markDirty(k); },
+  raw(k, v){ try{ localStorage.setItem('dt.'+k, JSON.stringify(v)); }catch{} },
 };
+const SYNC_KEYS = ['likes','playlists','customSets','artists','pos'];
+let syncCode = store.get('syncCode', null), syncUpdated = store.get('syncUpdated', 0), syncDirty = false, syncTimer = null, lastPull = 0, syncState = '';
+
 let likes = store.get('likes', []);
 let playlists = store.get('playlists', []);
 let recent = store.get('recent', []);
@@ -391,13 +406,13 @@ async function search(q, mode = 'songs'){
   const ck = mode + ':' + q;
   if (searchCache.has(ck)) return searchCache.get(ck);
   let sq = id || q;
-  if (mode === 'sets' && !id && !/\b(set|mix|live|liveset)\b/i.test(q)) sq += ' live set';
-  const r = await fetch('api/search?q=' + encodeURIComponent(sq));
+  if (mode !== 'songs' && !id && !/\b(set|mix|live|liveset)\b/i.test(q)) sq += ' live set';
+  const r = await fetch('api/search?q=' + encodeURIComponent(sq) + (mode === 'new' ? '&recent=1' : ''));
   const j = await r.json();
   if (!r.ok) throw new Error(j.error || 'Zoeken mislukt');
   // lange mixen/concerten (> 20 min) weglaten, tenzij er dan te weinig over is
-  let res = mode === 'sets' ? j.results.filter(t => t.seconds >= 1200) : j.results.filter(t => !t.seconds || t.seconds <= 1200);
-  if (res.length < (mode === 'sets' ? 3 : 5) || id) res = j.results;
+  let res = mode !== 'songs' ? j.results.filter(t => t.seconds >= 1200) : j.results.filter(t => !t.seconds || t.seconds <= 1200);
+  if (mode !== 'new' && (res.length < (mode === 'sets' ? 3 : 5) || id)) res = j.results;
   res = res.map(clean);
   if (id) res.sort((a,b) => (b.id===id) - (a.id===id));
   if (res.length) searchCache.set(ck, res);
@@ -413,6 +428,53 @@ let player = null, ready = false, pendingId = null, errStreak = 0;
 let positions = store.get('pos', {});        // id -> seconden (alleen lange sets)
 let artistPlays = store.get('artists', {});  // artiest -> aantal keer gestart
 let sleepAt = 0, sleepEndOfTrack = false;
+let autoplay = store.get('autoplay', true);
+const infoCache = new Map();
+function getInfo(id){
+  if (!infoCache.has(id)) infoCache.set(id, fetch('api/video?id=' + id).then(r => r.json()).then(d => d.error ? { tracks:[], related:[] } : d).catch(() => { infoCache.delete(id); return { tracks:[], related:[] }; }));
+  return infoCache.get(id);
+}
+let curInfo = null, curTrackIdx = -1;
+// vergelijkbare video's achteraan de wachtrij zetten als die bijna op is
+async function extendQueue(force = false){
+  const t = cur(); if (!t || (!autoplay && !force) || repeat !== 'off') return 0;
+  if (!force && pos() < order.length - 2) return 0;
+  const info = await getInfo(t.id);
+  const have = new Set(queue.map(x => x.id));
+  const cand = info.related.filter(r => !have.has(r.id) && (t.set ? r.seconds >= 1200 : r.seconds >= 60 && r.seconds <= 1200));
+  const add = (cand.length ? cand : info.related.filter(r => !have.has(r.id))).slice(0, 8).map(r => ({ ...clean(r), auto:1 }));
+  add.forEach(a => { queue.push(a); order.push(queue.length - 1); });
+  if (add.length) renderQueue();
+  return add.length;
+}
+async function loadInfoFor(t){
+  curInfo = null; curTrackIdx = -1; renderTracklist();
+  const info = await getInfo(t.id);
+  if (cur() !== t) return;
+  curInfo = info; renderTracklist(); extendQueue();
+}
+function renderTracklist(){
+  const el = $('#npTracks'); if (!el) return;
+  const tr = curInfo && curInfo.tracks || [];
+  if (tr.length < 2){ el.innerHTML = ''; return; }
+  el.innerHTML = `<div class="qh"><span>Tracklist · ${tr.length}</span></div><div class="tl">${tr.map((x, i) =>
+    `<button class="tl-i" data-i="${i}" onclick="seekTrack(${i})"><span class="tl-t">${fmt(x.at)}</span><span class="tl-n">${esc(x.title)}</span></button>`).join('')}</div>`;
+  curTrackIdx = -1;
+}
+function seekTrack(i){ const x = curInfo && curInfo.tracks[i]; if (x && ready){ player.seekTo(x.at, true); player.playVideo(); } }
+function updateCurrentTrack(c){
+  const tr = curInfo && curInfo.tracks || []; if (tr.length < 2) return;
+  let i = -1; for (let k = 0; k < tr.length; k++) if (tr[k].at <= c + 0.5) i = k;
+  if (i === curTrackIdx) return;
+  curTrackIdx = i;
+  document.querySelectorAll('.tl-i').forEach(b => b.classList.toggle('on', +b.dataset.i === i));
+  const on = document.querySelector('.tl-i.on'); if (on && !$('#np').matches(':hover')) on.scrollIntoView({ block:'nearest' });
+  const t = cur(); if (!t || i < 0) return;
+  $('#barArtist').textContent = '♪ ' + tr[i].title;
+  if ('mediaSession' in navigator) navigator.mediaSession.metadata = new MediaMetadata({ title: tr[i].title, artist: t.title, album:'Claude Music',
+    artwork:[{ src:thumb(t.id,'hqdefault'), sizes:'480x360', type:'image/jpeg' }] });
+}
+function toggleAutoplay(){ autoplay = !autoplay; store.set('autoplay', autoplay); renderQueue(); toast(autoplay ? 'Automatisch doorspelen aan' : 'Automatisch doorspelen uit'); if (autoplay) extendQueue(); }
 let queue = [], qi = -1, shuffle = store.get('shuffle', false), repeat = store.get('repeat', 'off');
 let playing = false, muted = false, volume = store.get('volume', 80);
 let order = []; // speelvolgorde bij shuffle (indices in queue)
@@ -473,6 +535,7 @@ function loadCurrent(){
   if (innerWidth <= 1100 && innerWidth > 720) {} // tablet: paneel blijft dicht tot je erop tikt
   setMedia(t);
   updateNowUI(); updatePlayUI();
+  loadInfoFor(t);
 }
 function pos(){ return order.indexOf(qi); }
 function next(manual = false){
@@ -481,7 +544,12 @@ function next(manual = false){
   let p = pos() + 1;
   if (p >= order.length){
     if (repeat === 'all' || manual){ if (shuffle) rebuildOrder(order[0]); p = 0; }
-    else { playing = false; updatePlayUI(); return; }
+    else {
+      // einde van de wachtrij: aanvullen met vergelijkbare nummers/sets
+      if (autoplay) extendQueue(true).then(n => { if (n) next(); else { playing = false; updatePlayUI(); } });
+      else { playing = false; updatePlayUI(); }
+      return;
+    }
   }
   qi = order[p]; loadCurrent();
 }
@@ -566,6 +634,7 @@ setInterval(() => {
   if (!seeking){ $('#tCur').textContent = fmt(c); const v = d ? Math.round(c/d*1000) : 0; seekEl.value = v; seekEl.style.setProperty('--p', v/10 + '%'); }
   const t = cur();
   if (t && t.set && playing && c > 30 && Math.floor(c) % 5 === 0){ positions[t.id] = c; store.set('pos', positions); }
+  updateCurrentTrack(c);
   if (sleepAt && Date.now() >= sleepAt){ sleepAt = 0; player.pauseVideo(); toast('Slaaptimer: gestopt'); }
   if ('mediaSession' in navigator && d && navigator.mediaSession.setPositionState){
     try{ navigator.mediaSession.setPositionState({ duration:d, position:Math.min(c,d), playbackRate:1 }); }catch{}
@@ -577,7 +646,7 @@ function updateNowUI(){
   const t = cur();
   $('#barImg').src = t ? thumb(t.id,'mqdefault') : 'data:image/gif;base64,R0lGODlhAQABAAAAACw=';
   $('#barTitle').textContent = t ? t.title : 'Kies een nummer';
-  $('#barArtist').textContent = t ? t.artist : 'Zoek iets om te beginnen';
+  $('#barArtist').textContent = t ? (curInfo && curTrackIdx >= 0 && curInfo.tracks[curTrackIdx] ? '♪ ' + curInfo.tracks[curTrackIdx].title : t.artist) : 'Zoek iets om te beginnen';
   $('#npTitle').textContent = t ? t.title : '—';
   $('#npArtist').textContent = t ? t.artist : '';
   $('#barLike').style.visibility = t ? 'visible' : 'hidden';
@@ -599,6 +668,7 @@ function updatePlayUI(){
 }
 function renderQueue(){
   const el = $('#npQueue'); const p = pos();
+  const ab = $('#btnAuto'); if (ab){ ab.textContent = 'Automatisch ' + (autoplay ? 'aan' : 'uit'); ab.title = 'Speelt vergelijkbare nummers/sets als de wachtrij op is'; ab.style.color = autoplay ? 'var(--accent)' : ''; }
   const up = order.slice(p + 1, p + 41);
   el.innerHTML = up.length ? up.map((i, k) => { const t = queue[i]; return `
     <div class="qitem" onclick="jumpTo(${p+1+k})"><img src="${thumb(t.id,'default')}" alt="" loading="lazy">
@@ -760,6 +830,7 @@ function route(){
   if (name === 'genre') return { name:'genre', g: decodeURIComponent(rest.join('/')) };
   if (name === 'sets') return { name:'sets' };
   if (name === 'set') return { name:'set', s: decodeURIComponent(rest.join('/')) };
+  if (name === 'koppel') return { name:'koppel', code: rest[0] };
   return { name:'home' };
 }
 // Live sets: [naam, zoekterm, kleur, emoji]
@@ -795,11 +866,16 @@ function render(){
     a.dataset.nav === (r.name === 'home' ? 'home' : r.name === 'sets' || r.name === 'set' ? 'sets' : r.name === 'zoeken' || r.name === 'genre' ? 'zoeken' : ['bibliotheek','lijst','liked'].includes(r.name) ? 'bibliotheek' : '')));
   renderSide();
   main.scrollTop = 0;
-  if (r.name === 'home'){ renderHome(main); fillForYou(); return; }
+  if (r.name === 'home'){ renderHome(main); fillNew(); fillForYou(); return; }
   if (r.name === 'zoeken') return renderSearch(main, r.q);
   if (r.name === 'genre') return renderGenre(main, r.g);
   if (r.name === 'bibliotheek') return renderLibrary(main);
   if (r.name === 'sets') return renderSets(main);
+  if (r.name === 'koppel'){
+    const code = r.code; history.replaceState(null, '', '#/bibliotheek');
+    if (code && code !== syncCode && confirm('Dit apparaat koppelen aan je Claude Music-bibliotheek?')) enableSync(code); else render();
+    return;
+  }
   if (r.name === 'set') return renderSet(main, r.s);
   if (r.name === 'liked') return renderCollection(main, { kind:'Afspeellijst', name:'Leuke nummers', cover:likedCover, tracks:likes, ctx:'liked', hero:'#5a2a6e' });
   if (r.name === 'lijst'){
@@ -821,6 +897,16 @@ function topArtists(n = 3){
   const score = { ...artistPlays };
   likes.forEach(t => { if (t.artist) score[t.artist] = (score[t.artist] || 0) + 3; });
   return Object.entries(score).filter(([a, c]) => c >= 2 && !/^(q-dance|various|the harder army)$/i.test(a)).sort((a, b) => b[1] - a[1]).slice(0, n).map(x => x[0]);
+}
+async function fillNew(){
+  const el = $('#newSets'); if (!el) return;
+  const qs = [...topArtists(3), 'hardstyle', 'hardcore', 'Q-dance'];
+  const lists2 = await Promise.all(qs.map(q => search(q, 'new').catch(() => [])));
+  const seen = new Set(), mix = [];
+  for (let i = 0; i < 12 && mix.length < 16; i++) for (const l of lists2){ const t = l[i]; if (t && !seen.has(t.id)){ seen.add(t.id); mix.push(t); } }
+  if (!mix.length || !$('#newSets')) return;
+  lists.nw = { tracks: mix, ctx:'new' };
+  el.innerHTML = `<h2>Nieuwe sets deze week</h2><div class="row">${mix.map((t, i) => card(t, 'nw', i)).join('')}</div>`;
 }
 async function fillForYou(){
   const el = $('#forYou'); if (!el) return;
@@ -897,6 +983,7 @@ function renderHome(main){
       return cont.length ? `<h2>Verder luisteren</h2><div class="row">${cont.slice(0,10).map((t,i) => card(t,'cont',i)).join('')}</div>` : ''; })()}
     <div class="sec-h"><h2>Hardstyle live sets</h2><a href="#/sets">Alles tonen</a></div>
     <div class="chips">${SETS.slice(0,4).map(setChip).join('')}</div>
+    <div id="newSets"></div>
     <div id="forYou"></div>
     ${recent.length ? `<h2>Onlangs afgespeeld</h2><div class="cards">${recent.slice(0,12).map((t,i) => card(t,'recent',i)).join('')}</div>` : ''}
     <h2>Ontdek</h2><div class="chips">${GENRES.slice(0,8).map(chip).join('')}</div>
@@ -992,14 +1079,23 @@ function renderLibrary(main){
     <div style="display:flex;justify-content:space-between;align-items:center"><h2 style="margin:4px 0 16px">Jouw bibliotheek</h2>
     <button class="btn ghost" onclick="newPlaylist()">+ Afspeellijst</button></div>
     <div class="cards">
-      <a class="card" href="#/leuk"><div class="img">${likedCover.replace('class="cov"','style="width:100%;height:100%"')}</div><div class="t">Leuke nummers</div><div class="s">${likes.length} nummers</div></a>
-      ${playlists.map(p => `<a class="card" href="#/lijst/${p.id}"><div class="img">${plCover(p).replace('class="cov"','style="width:100%;height:100%;object-fit:cover"')}</div><div class="t">${esc(p.name)}</div><div class="s">${p.tracks.length} nummers</div></a>`).join('')}
+      <a class="card" href="#/leuk"><div class="img">${likedCover}</div><div class="t">Leuke nummers</div><div class="s">${likes.length} nummers</div></a>
+      ${playlists.map(p => `<a class="card" href="#/lijst/${p.id}"><div class="img">${plCover(p)}</div><div class="t">${esc(p.name)}</div><div class="s">${p.tracks.length} nummers</div></a>`).join('')}
+    </div>
+    <div class="sync-box">
+      <h3>Synchroniseren tussen apparaten</h3>
+      ${syncCode ? `<div style="color:var(--muted);font-size:14px">Je leuke nummers, afspeellijsten, eigen live sets en waar je in sets was blijven gelijk op elk gekoppeld apparaat.</div>
+        <div class="sync-code">${esc(syncCode)}</div> <span id="syncState" style="color:var(--dim);font-size:13px">${esc(syncState)}</span>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px"><button class="btn" onclick="copySyncLink()">Link kopiëren</button><button class="btn ghost" onclick="pull()">Nu synchroniseren</button><button class="btn ghost" onclick="disableSync()">Ontkoppelen</button></div>
+        <p style="color:var(--dim);font-size:13px;margin:10px 0 0">Open de link (of vul de code in) op je telefoon of computer. Iedereen met deze code kan je bibliotheek zien, dus deel hem niet.</p>`
+      : `<div style="color:var(--muted);font-size:14px;margin-bottom:12px">Zet het aan op dit apparaat en koppel daarna je andere apparaten met de code.</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn" onclick="enableSync()">Synchronisatie aanzetten</button><button class="btn ghost" onclick="joinSync()">Ik heb al een code</button></div>`}
     </div>
     <div style="margin-top:30px;display:flex;gap:10px;flex-wrap:wrap">
       <button class="btn ghost" onclick="exportData()">Exporteren (back-up)</button>
       <label class="btn ghost" style="cursor:pointer">Importeren<input type="file" accept="application/json" hidden onchange="importData(this.files[0])"></label>
     </div>
-    <p style="color:var(--dim);font-size:13px;margin-top:10px">Je bibliotheek wordt in deze browser bewaard. Met exporteren/importeren zet je hem over naar een ander apparaat.</p>
+    <p style="color:var(--dim);font-size:13px;margin-top:10px">Zonder synchronisatie staat je bibliotheek alleen in deze browser. Een back-upbestand kun je altijd maken.</p>
   </div>`;
 }
 function renderSide(){
@@ -1007,6 +1103,78 @@ function renderSide(){
   $('#sidePl').innerHTML = `<a class="pl-item ${r.name==='liked'?'active':''}" href="#/leuk">${likedCover}<div style="min-width:0"><div class="t">Leuke nummers</div><div class="s">${likes.length} nummers</div></div></a>` +
     playlists.map(p => `<a class="pl-item ${r.id===p.id?'active':''}" href="#/lijst/${p.id}">${plCover(p)}<div style="min-width:0"><div class="t">${esc(p.name)}</div><div class="s">Afspeellijst · ${p.tracks.length}</div></div></a>`).join('');
 }
+
+/* ---------- synchroniseren tussen apparaten ---------- */
+function markDirty(k){
+  if (k !== 'pos'){ syncUpdated = Date.now(); store.raw('syncUpdated', syncUpdated); }
+  syncDirty = true;
+  if (syncCode && k !== 'pos'){ clearTimeout(syncTimer); syncTimer = setTimeout(push, 2000); }
+}
+const snapshot = () => ({ app:'claude-music', v:2, updated: syncUpdated, likes, playlists, customSets, artists: artistPlays, pos: positions });
+function applyLib(d){
+  likes = d.likes || []; playlists = d.playlists || []; customSets = d.customSets || []; artistPlays = d.artists || {}; positions = d.pos || {};
+  syncUpdated = d.updated || Date.now();
+  store.raw('likes', likes); store.raw('playlists', playlists); store.raw('customSets', customSets); store.raw('artists', artistPlays); store.raw('pos', positions); store.raw('syncUpdated', syncUpdated);
+  render(); updateNowUI();
+}
+async function push(keepalive = false){
+  if (!syncCode) return;
+  syncDirty = false;
+  try{
+    const r = await fetch('api/sync/' + syncCode, { method:'PUT', body: JSON.stringify(snapshot()), keepalive, headers:{ 'Content-Type':'application/json' } });
+    setSyncState(r.ok ? 'Gesynchroniseerd' : 'Synchroniseren mislukt');
+  }catch{ syncDirty = true; setSyncState('Offline — probeert later opnieuw'); }
+}
+async function pull(){
+  if (!syncCode) return;
+  lastPull = Date.now();
+  try{
+    const d = await (await fetch('api/sync/' + syncCode, { cache:'no-store' })).json();
+    if (d.empty) return push();
+    if ((d.updated || 0) > syncUpdated) applyLib(d);
+    else if (syncUpdated > (d.updated || 0) || syncDirty) await push();
+    setSyncState('Gesynchroniseerd');
+  }catch{ setSyncState('Offline'); }
+}
+function setSyncState(t){ syncState = t; const el = $('#syncState'); if (el) el.textContent = t; }
+// samenvoegen bij het koppelen van een apparaat, zodat er niets verloren gaat
+function mergeLib(a, b){
+  const byId = (x, y, k = 'id') => { const m = new Map(); [...x, ...y].forEach(i => { if (!m.has(i[k])) m.set(i[k], i); }); return [...m.values()]; };
+  const pls = new Map();
+  [...(a.playlists || []), ...(b.playlists || [])].forEach(p => { const e = pls.get(p.id); pls.set(p.id, e ? { ...e, tracks: byId(e.tracks, p.tracks) } : p); });
+  const artists = { ...(a.artists || {}) }; Object.entries(b.artists || {}).forEach(([k, v]) => artists[k] = Math.max(artists[k] || 0, v));
+  const pos = { ...(b.pos || {}), ...(a.pos || {}) };
+  return { likes: byId(a.likes || [], b.likes || []), playlists: [...pls.values()], customSets: byId(a.customSets || [], b.customSets || [], 'name'), artists, pos, updated: Date.now() };
+}
+async function enableSync(code){
+  const fresh = !code;
+  code = (code || (crypto.randomUUID ? crypto.randomUUID().replace(/-/g,'').slice(0, 12) : uid() + uid())).toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (code.length < 10){ toast('Die code klopt niet'); return; }
+  let remote = { empty:true };
+  if (!fresh){ try{ remote = await (await fetch('api/sync/' + code, { cache:'no-store' })).json(); }catch{ toast('Geen verbinding'); return; } }
+  syncCode = code; store.raw('syncCode', code);
+  applyLib(remote.empty ? { ...snapshot(), updated: Date.now() } : mergeLib(remote, snapshot()));
+  await push();
+  toast(fresh ? 'Synchronisatie staat aan' : 'Apparaat gekoppeld');
+  if (route().name !== 'bibliotheek') location.hash = '#/bibliotheek'; else render();
+}
+async function joinSync(){
+  const c = await prompt2('Code van je andere apparaat', '', 'Koppelen');
+  if (c) enableSync(c);
+}
+function disableSync(){
+  if (!confirm('Dit apparaat ontkoppelen? Je bibliotheek blijft hier gewoon staan.')) return;
+  syncCode = null; localStorage.removeItem('dt.syncCode'); render();
+}
+function copySyncLink(){
+  const link = location.origin + location.pathname + '#/koppel/' + syncCode;
+  (navigator.clipboard ? navigator.clipboard.writeText(link) : Promise.reject()).then(() => toast('Link gekopieerd — open hem op je andere apparaat'), () => prompt('Kopieer deze link:', link));
+}
+document.addEventListener('visibilitychange', () => {
+  if (!syncCode) return;
+  if (document.visibilityState === 'hidden'){ if (syncDirty) push(true); }
+  else if (Date.now() - lastPull > 30000) pull();
+});
 
 /* back-up */
 function exportData(){
@@ -1038,6 +1206,7 @@ document.addEventListener('keydown', e => {
 
 addEventListener('hashchange', render);
 render(); updateNowUI(); updatePlayUI();
+if (syncCode) pull();
 if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script>
 </body>

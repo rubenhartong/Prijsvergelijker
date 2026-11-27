@@ -4,5 +4,7 @@
   "main": "worker.js",
   "compatibility_date": "2026-11-01",
   // De bestanden in public/ worden als tekst in de worker meegebundeld (geen aparte asset-upload nodig).
+  // Opslag voor synchroniseren tussen apparaten (bibliotheek per sync-code)
+  "kv_namespaces": [{ "binding": "SYNC", "id": "6e06bba5534d43b28f6acb6c6711c138" }],
   "rules": [{ "type": "Text", "globs": ["**/*.html", "**/*.svg", "**/*.webmanifest"], "fallthrough": true }]
 }
