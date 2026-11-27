@@ -1,4 +1,4 @@
-// Draaitafel — kleine worker: serveert de app en zoekt op YouTube zonder API-sleutel
+// Claude Music — kleine worker: serveert de app en zoekt op YouTube zonder API-sleutel
 // door de zoekpagina op te halen en ytInitialData uit te lezen.
 
 import indexHtml from "./public/index.html";

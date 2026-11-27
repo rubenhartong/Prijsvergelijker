@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#121216">
-<title>Draaitafel</title>
+<title>Claude Music</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon.svg">
@@ -242,7 +242,7 @@ h2:first-child{margin-top:4px}
 <body>
 <div class="app no-np" id="app">
   <aside class="side">
-    <div class="brand"><img class="logo" src="icon.svg" alt=""> Draaitafel</div>
+    <div class="brand"><img class="logo" src="icon.svg" alt=""> Claude Music</div>
     <nav class="nav">
       <a href="#/" data-nav="home"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3 2 11h3v9h5v-6h4v6h5v-9h3z"/></svg>Home</a>
       <a href="#/zoeken" data-nav="zoeken"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>Zoeken</a>
@@ -505,7 +505,7 @@ function jumpTo(p){ qi = order[p]; loadCurrent(); }
 /* media session: bediening vanaf vergrendelscherm / koptelefoon */
 function setMedia(t){
   if (!('mediaSession' in navigator)) return;
-  navigator.mediaSession.metadata = new MediaMetadata({ title:t.title, artist:t.artist, album:'Draaitafel',
+  navigator.mediaSession.metadata = new MediaMetadata({ title:t.title, artist:t.artist, album:'Claude Music',
     artwork:[{ src:thumb(t.id,'hqdefault'), sizes:'480x360', type:'image/jpeg' }] });
 }
 if ('mediaSession' in navigator){
@@ -754,7 +754,7 @@ function renderHome(main){
     <div class="quick">${quick.join('')}</div>
     ${recent.length ? `<h2>Onlangs afgespeeld</h2><div class="cards">${recent.slice(0,12).map((t,i) => card(t,'recent',i)).join('')}</div>` : ''}
     <h2>Ontdek</h2><div class="chips">${GENRES.slice(0,8).map(chip).join('')}</div>
-    ${!recent.length ? `<div class="empty" style="margin-top:20px"><div class="big">Welkom bij Draaitafel</div>Zoek een artiest of nummer — alles komt van YouTube.<br><br><a class="btn" href="#/zoeken">${I.search.replace('<svg','<svg width="18" height="18"')} Zoeken</a></div>` : ''}
+    ${!recent.length ? `<div class="empty" style="margin-top:20px"><div class="big">Welkom bij Claude Music</div>Zoek een artiest of nummer — alles komt van YouTube.<br><br><a class="btn" href="#/zoeken">${I.search.replace('<svg','<svg width="18" height="18"')} Zoeken</a></div>` : ''}
   </div>`;
 }
 const chip = ([name, color, emoji]) => `<a class="chip" style="background:${color}" href="#/genre/${encodeURIComponent(name)}">${esc(name)}<span>${emoji}</span></a>`;
@@ -862,15 +862,15 @@ function renderSide(){
 
 /* back-up */
 function exportData(){
-  const blob = new Blob([JSON.stringify({ app:'draaitafel', v:1, likes, playlists }, null, 1)], { type:'application/json' });
-  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'draaitafel-backup.json'; a.click();
+  const blob = new Blob([JSON.stringify({ app:'claude-music', v:1, likes, playlists }, null, 1)], { type:'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'claude-music-backup.json'; a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 async function importData(file){
   if (!file) return;
   try{
     const d = JSON.parse(await file.text());
-    if (d.app !== 'draaitafel') throw 0;
+    if (!['draaitafel','claude-music'].includes(d.app)) throw 0;
     const ids = new Set(likes.map(t => t.id));
     likes = [...likes, ...(d.likes || []).filter(t => !ids.has(t.id))];
     const pids = new Set(playlists.map(p => p.id));

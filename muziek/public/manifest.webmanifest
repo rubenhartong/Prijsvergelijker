@@ -1,6 +1,6 @@
 {
-  "name": "Draaitafel",
-  "short_name": "Draaitafel",
+  "name": "Claude Music",
+  "short_name": "Claude Music",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#0e0e11",

@@ -1,4 +1,4 @@
-# Draaitafel 🎵
+# Claude Music 🎵
 
 Eigen muziekapp in de stijl van een streamingdienst, met nummers van YouTube.
 
@@ -22,7 +22,7 @@ public/*           icoon, manifest, service worker
 cd muziek
 npx wrangler deploy
 ```
-Live: https://draaitafel.overtime-web.workers.dev
+Live: https://claude-music.overtime-web.workers.dev
 
 Lokaal proberen: `npx wrangler dev` in deze map.
 

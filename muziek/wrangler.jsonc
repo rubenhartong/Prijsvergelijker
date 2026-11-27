@@ -1,6 +1,6 @@
 {
   "$schema": "../node_modules/wrangler/config-schema.json",
-  "name": "draaitafel",
+  "name": "claude-music",
   "main": "worker.js",
   "compatibility_date": "2026-11-01",
   // De bestanden in public/ worden als tekst in de worker meegebundeld (geen aparte asset-upload nodig).
