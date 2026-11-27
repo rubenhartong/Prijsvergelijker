@@ -81,6 +81,18 @@ h2:first-child{margin-top:4px}
 .card .fab{position:absolute;right:8px;bottom:8px;width:44px;height:44px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;opacity:0;transform:translateY(6px);transition:.15s;box-shadow:0 6px 14px rgba(0,0,0,.4)}
 .card:hover .fab{opacity:1;transform:none}
 .card .fab svg{width:18px;height:18px}
+.card .badge{position:absolute;left:8px;top:8px;background:rgba(0,0,0,.75);font-size:11px;font-weight:700;padding:3px 6px;border-radius:4px}
+.card .resume{position:absolute;left:0;right:0;bottom:0;height:4px;background:rgba(255,255,255,.25)}
+.card .resume i{display:block;height:100%;background:var(--accent)}
+.row{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(160px,180px);gap:6px;overflow-x:auto;scrollbar-width:none;margin:0 -12px;padding:0 0 4px}
+.row::-webkit-scrollbar{display:none}
+.sec-h{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.sec-h a{color:var(--muted);font-size:13px;font-weight:700;white-space:nowrap}
+.sec-h a:hover{color:var(--text);text-decoration:underline}
+.seg{display:flex;gap:8px;margin:4px 0 6px}
+.seg button{padding:7px 14px;border-radius:999px;background:var(--panel2);font-size:14px;font-weight:600}
+.seg button.on{background:var(--text);color:#000}
+@media (max-width:720px){.row{grid-auto-columns:minmax(140px,150px);margin:0 -4px}}
 
 .chips{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:14px}
 .chip{height:100px;border-radius:8px;padding:14px;font-weight:800;font-size:20px;position:relative;overflow:hidden;text-align:left;letter-spacing:-.3px}
@@ -246,6 +258,7 @@ h2:first-child{margin-top:4px}
     <nav class="nav">
       <a href="#/" data-nav="home"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3 2 11h3v9h5v-6h4v6h5v-9h3z"/></svg>Home</a>
       <a href="#/zoeken" data-nav="zoeken"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>Zoeken</a>
+      <a href="#/sets" data-nav="sets"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg>Live sets</a>
       <a href="#/bibliotheek" data-nav="bibliotheek"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 4v16M9 4v16M14 4l6 16"/></svg>Bibliotheek</a>
     </nav>
     <h4>Afspeellijsten <button title="Nieuwe afspeellijst" onclick="newPlaylist()">+</button></h4>
@@ -257,6 +270,7 @@ h2:first-child{margin-top:4px}
   <section class="np" id="np">
     <div class="hd">
       <span>Nu speelt</span>
+      <button class="iconbtn" id="btnSleep" title="Slaaptimer" onclick="sleepMenu(event)" style="margin-left:auto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 13a9 9 0 1 1-10-10 7 7 0 0 0 10 10z"/></svg></button>
       <button class="iconbtn np-close" onclick="toggleNP(false)" title="Sluiten"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="m6 9 6 6 6-6"/></svg></button>
     </div>
     <div class="vidwrap"><div id="ytp"></div></div>
@@ -295,7 +309,8 @@ h2:first-child{margin-top:4px}
   <nav class="mnav">
     <a href="#/" data-nav="home"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3 2 11h3v9h5v-6h4v6h5v-9h3z"/></svg>Home</a>
     <a href="#/zoeken" data-nav="zoeken"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>Zoeken</a>
-    <a href="#/bibliotheek" data-nav="bibliotheek"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 4v16M9 4v16M14 4l6 16"/></svg>Bibliotheek</a>
+    <a href="#/sets" data-nav="sets"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg>Live sets</a>
+      <a href="#/bibliotheek" data-nav="bibliotheek"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 4v16M9 4v16M14 4l6 16"/></svg>Bibliotheek</a>
   </nav>
 </div>
 
@@ -340,7 +355,12 @@ const uid = () => Math.random().toString(36).slice(2, 10);
 // "Artiest - Titel (Official Video)" -> nette titel + artiest
 function clean(t){
   if (t._c) return t;
-  let title = t.title || '', artist = t.artist || '';
+  let title = t.title || '', artist = (t.artist || '').replace(/\s+en nog \d+$/,'').replace(/\s+en\s+.+$/,'');
+  if ((t.seconds || 0) >= 1200){
+    // live set / mix: volledige titel houden, alleen opschonen
+    title = title.replace(/\s*[\(\[](official|full|hq|hd|4k)[^\)\]]*[\)\]]/ig,'').split(/\s*\|\s*/).filter(Boolean).join(' · ');
+    return { id:t.id, title, artist, duration:t.duration, seconds:t.seconds, set:1, _c:1 };
+  }
   title = title.replace(/\s*[\(\[][^\)\]]*(official|video|audio|lyric|lyrics|visuali[sz]er|clip|hd|hq|4k|remaster(ed)?|music video|videoclip|m\/v|mv)[^\)\]]*[\)\]]/ig, '')
                .replace(/\s*\|\s*.*$/, '').replace(/\s+(official\s+)?(music\s+)?(video|audio)$/i,'').trim();
   const m = title.match(/^(.+?)\s+[-–—]\s+(.+)$/);
@@ -365,19 +385,22 @@ function toast(msg){
 
 /* ---------- zoeken ---------- */
 const searchCache = new Map();
-async function search(q){
+async function search(q, mode = 'songs'){
   q = q.trim(); if (!q) return [];
   const id = ytId(q);
-  if (searchCache.has(q)) return searchCache.get(q);
-  const r = await fetch('api/search?q=' + encodeURIComponent(id || q));
+  const ck = mode + ':' + q;
+  if (searchCache.has(ck)) return searchCache.get(ck);
+  let sq = id || q;
+  if (mode === 'sets' && !id && !/\b(set|mix|live|liveset)\b/i.test(q)) sq += ' live set';
+  const r = await fetch('api/search?q=' + encodeURIComponent(sq));
   const j = await r.json();
   if (!r.ok) throw new Error(j.error || 'Zoeken mislukt');
   // lange mixen/concerten (> 20 min) weglaten, tenzij er dan te weinig over is
-  let res = j.results.filter(t => !t.seconds || t.seconds <= 1200);
-  if (res.length < 5) res = j.results;
+  let res = mode === 'sets' ? j.results.filter(t => t.seconds >= 1200) : j.results.filter(t => !t.seconds || t.seconds <= 1200);
+  if (res.length < (mode === 'sets' ? 3 : 5) || id) res = j.results;
   res = res.map(clean);
   if (id) res.sort((a,b) => (b.id===id) - (a.id===id));
-  searchCache.set(q, res);
+  if (res.length) searchCache.set(ck, res);
   return res;
 }
 function ytId(s){
@@ -387,6 +410,9 @@ function ytId(s){
 
 /* ---------- speler ---------- */
 let player = null, ready = false, pendingId = null, errStreak = 0;
+let positions = store.get('pos', {});        // id -> seconden (alleen lange sets)
+let artistPlays = store.get('artists', {});  // artiest -> aantal keer gestart
+let sleepAt = 0, sleepEndOfTrack = false;
 let queue = [], qi = -1, shuffle = store.get('shuffle', false), repeat = store.get('repeat', 'off');
 let playing = false, muted = false, volume = store.get('volume', 80);
 let order = []; // speelvolgorde bij shuffle (indices in queue)
@@ -434,8 +460,13 @@ function rebuildOrder(first){
 }
 function loadCurrent(){
   const t = cur(); if (!t) return;
-  if (ready) player.loadVideoById(t.id); else pendingId = t.id;
+  const saved = t.set ? positions[t.id] : 0;
+  const start = saved && saved > 30 && saved < (t.seconds || 1e9) - 60 ? Math.floor(saved) : 0;
+  const arg = start ? { videoId:t.id, startSeconds:start } : t.id;
+  if (ready) player.loadVideoById(arg); else pendingId = arg;
+  if (start) toast('Verder vanaf ' + fmt(start));
   playing = true;
+  if (t.artist){ artistPlays[t.artist] = (artistPlays[t.artist] || 0) + 1; store.set('artists', artistPlays); }
   recent = [t, ...recent.filter(x => x.id !== t.id)].slice(0, 40); store.set('recent', recent);
   document.title = `${t.title} · ${t.artist}`;
   $('#app').classList.remove('no-np');
@@ -459,7 +490,11 @@ function prev(){
   if (ready && player.getCurrentTime && player.getCurrentTime() > 3){ player.seekTo(0, true); return; }
   const p = Math.max(0, pos() - 1); qi = order[p]; loadCurrent();
 }
-function onEnded(){ next(false); }
+function onEnded(){
+  const t = cur(); if (t && positions[t.id]){ delete positions[t.id]; store.set('pos', positions); }
+  if (sleepEndOfTrack){ sleepEndOfTrack = false; playing = false; updatePlayUI(); toast('Slaaptimer: gestopt'); return; }
+  next(false);
+}
 function togglePlay(){
   if (!cur()){ const src = likes.length ? likes : recent; if (src.length) playList(src, 0); else location.hash = '#/zoeken'; return; }
   if (!ready) return;
@@ -529,6 +564,9 @@ setInterval(() => {
   $('#tDur').textContent = fmt(d);
   $('#mprog').style.width = d ? (c/d*100) + '%' : '0';
   if (!seeking){ $('#tCur').textContent = fmt(c); const v = d ? Math.round(c/d*1000) : 0; seekEl.value = v; seekEl.style.setProperty('--p', v/10 + '%'); }
+  const t = cur();
+  if (t && t.set && playing && c > 30 && Math.floor(c) % 5 === 0){ positions[t.id] = c; store.set('pos', positions); }
+  if (sleepAt && Date.now() >= sleepAt){ sleepAt = 0; player.pauseVideo(); toast('Slaaptimer: gestopt'); }
   if ('mediaSession' in navigator && d && navigator.mediaSession.setPositionState){
     try{ navigator.mediaSession.setPositionState({ duration:d, position:Math.min(c,d), playbackRate:1 }); }catch{}
   }
@@ -584,6 +622,21 @@ $('#btnShuffle').innerHTML = I.shuffle;
 document.querySelector('.ctrl .btns button[title=Vorige]').innerHTML = I.prev;
 document.querySelector('.ctrl .btns button[title=Volgende]').innerHTML = I.next;
 $('#btnNP').innerHTML = I.np;
+
+/* ---------- slaaptimer ---------- */
+function sleepMenu(ev){
+  ev.stopPropagation();
+  const r = ev.currentTarget.getBoundingClientRect();
+  const set = (min) => { sleepEndOfTrack = false; sleepAt = Date.now() + min*60000; toast(`Stopt over ${min} minuten`); updateSleepUI(); };
+  openMenu(r.left - 160, r.bottom + 4, [
+    { label: sleepAt ? 'Slaaptimer: nog ' + Math.ceil((sleepAt - Date.now())/60000) + ' min' : sleepEndOfTrack ? 'Slaaptimer: einde nummer' : 'Slaaptimer' },
+    { text:'15 minuten', fn:() => set(15) }, { text:'30 minuten', fn:() => set(30) },
+    { text:'1 uur', fn:() => set(60) }, { text:'2 uur', fn:() => set(120) },
+    { text:'Einde van dit nummer / deze set', fn:() => { sleepAt = 0; sleepEndOfTrack = true; toast('Stopt na dit nummer'); updateSleepUI(); } },
+    ...(sleepAt || sleepEndOfTrack ? ['-', { text:'Slaaptimer uit', fn:() => { sleepAt = 0; sleepEndOfTrack = false; toast('Slaaptimer uit'); updateSleepUI(); } }] : []),
+  ]);
+}
+function updateSleepUI(){ const b = $('#btnSleep'); if (b) b.classList.toggle('on', !!(sleepAt || sleepEndOfTrack)); }
 
 /* ---------- vind-ik-leuk & afspeellijsten ---------- */
 function toggleLike(t){
@@ -705,9 +758,26 @@ function route(){
   if (name === 'leuk') return { name:'liked' };
   if (name === 'bibliotheek') return { name:'bibliotheek' };
   if (name === 'genre') return { name:'genre', g: decodeURIComponent(rest.join('/')) };
+  if (name === 'sets') return { name:'sets' };
+  if (name === 'set') return { name:'set', s: decodeURIComponent(rest.join('/')) };
   return { name:'home' };
 }
+// Live sets: [naam, zoekterm, kleur, emoji]
+const SETS = [
+  ['Defqon.1 2026','Defqon.1 2026 live set','#b3121b','⚔️'],
+  ['Korsakoff','Korsakoff live set 2026','#5b1a8a','🎹'],
+  ['Sefa','Sefa live set 2026','#0f5c8a','🎻'],
+  ['Dr. Peacock','Dr. Peacock live set 2026','#a3157a','🦚'],
+  ['Harmony of Hardcore 2026','Harmony of Hardcore 2026 live set','#7a3d0a','💀'],
+  ['Qlimax','Qlimax live set','#2f2f8f','🌀'],
+  ['Hardstyle mixes','hardstyle mix 2026','#c2410c','🔊'],
+];
+let customSets = store.get('customSets', []); // [{name, q}]
+const allSets = () => [...SETS, ...customSets.map(c => [c.name, c.q, '#3a3a46', '🎧', true])];
 const GENRES = [
+  ['Hardstyle','#c2410c','⚡','hardstyle hits 2026'], ['Raw hardstyle','#7f1d1d','🔥','raw hardstyle 2026'],
+  ['Hardcore','#3f1d6e','💀','hardcore gabber 2026'], ['Frenchcore','#1d4ed8','🥖','frenchcore 2026'],
+  ['Euphoric','#0e7490','🌅','euphoric hardstyle'], ['Uptempo','#991b1b','💥','uptempo hardcore 2026'],
   ['Top 40 NL','#e13300','🔥','top 40 nederland hits'], ['Nederlandstalig','#e8115b','🇳🇱','nederlandstalige hits'],
   ['Pop','#148a08','🎤','pop hits 2026'], ['Hiphop','#bc5900','🎧','hip hop hits'],
   ['Dance','#8d67ab','💃','dance hits'], ['Rock','#e91429','🎸','classic rock songs'],
@@ -722,13 +792,15 @@ function render(){
   closeMenu();
   const r = route(), main = $('#main');
   document.querySelectorAll('[data-nav]').forEach(a => a.classList.toggle('active',
-    a.dataset.nav === (r.name === 'home' ? 'home' : r.name === 'zoeken' || r.name === 'genre' ? 'zoeken' : ['bibliotheek','lijst','liked'].includes(r.name) ? 'bibliotheek' : '')));
+    a.dataset.nav === (r.name === 'home' ? 'home' : r.name === 'sets' || r.name === 'set' ? 'sets' : r.name === 'zoeken' || r.name === 'genre' ? 'zoeken' : ['bibliotheek','lijst','liked'].includes(r.name) ? 'bibliotheek' : '')));
   renderSide();
   main.scrollTop = 0;
-  if (r.name === 'home') return renderHome(main);
+  if (r.name === 'home'){ renderHome(main); fillForYou(); return; }
   if (r.name === 'zoeken') return renderSearch(main, r.q);
   if (r.name === 'genre') return renderGenre(main, r.g);
   if (r.name === 'bibliotheek') return renderLibrary(main);
+  if (r.name === 'sets') return renderSets(main);
+  if (r.name === 'set') return renderSet(main, r.s);
   if (r.name === 'liked') return renderCollection(main, { kind:'Afspeellijst', name:'Leuke nummers', cover:likedCover, tracks:likes, ctx:'liked', hero:'#5a2a6e' });
   if (r.name === 'lijst'){
     const pl = playlists.find(p => p.id === r.id);
@@ -739,8 +811,77 @@ function render(){
 
 function card(t, key, i){
   return `<button class="card" onclick="playFrom('${key}',${i})" oncontextmenu="menuFrom(event,'${key}',${i})">
-    <div class="img"><img src="${thumb(t.id)}" alt="" loading="lazy"><span class="fab">${I.play}</span></div>
+    <div class="img"><img src="${thumb(t.id)}" alt="" loading="lazy">${t.set ? `<span class="badge">${esc(t.duration)}</span>` : ''}${t.set && positions[t.id] && t.seconds ? `<span class="resume"><i style="width:${Math.min(100, positions[t.id]/t.seconds*100)}%"></i></span>` : ''}<span class="fab">${I.play}</span></div>
     <div class="t">${esc(t.title)}</div><div class="s">${esc(t.artist)}</div></button>`;
+}
+
+const setChip = ([name, q, color, emoji]) => `<a class="chip" style="background:${color}" href="#/set/${encodeURIComponent(name)}">${esc(name)}<span>${emoji}</span></a>`;
+// "Voor jou": artiesten die je het vaakst start of leuk vindt
+function topArtists(n = 3){
+  const score = { ...artistPlays };
+  likes.forEach(t => { if (t.artist) score[t.artist] = (score[t.artist] || 0) + 3; });
+  return Object.entries(score).filter(([a, c]) => c >= 2 && !/^(q-dance|various|the harder army)$/i.test(a)).sort((a, b) => b[1] - a[1]).slice(0, n).map(x => x[0]);
+}
+async function fillForYou(){
+  const el = $('#forYou'); if (!el) return;
+  const arts = topArtists(3); if (!arts.length) return;
+  el.innerHTML = arts.map((a, k) => `<div class="sec-h"><h2>Omdat je ${esc(a)} luistert</h2><a href="#/zoeken/${encodeURIComponent(a)}">Alles tonen</a></div><div class="row" id="fy${k}"><div class="spinner"></div></div>`).join('');
+  arts.forEach(async (a, k) => {
+    try{
+      // alleen resultaten die echt over deze artiest gaan (naam in titel of artiest)
+      const norm = x => (x || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const na = norm(a), match = t => norm(t.artist).includes(na) || norm(t.title).includes(na);
+      const [songs, sets] = (await Promise.all([search(a), search(a, 'sets')])).map(l => l.filter(match));
+      if (!songs.length && !sets.length) throw 0;
+      const mix = []; const seen = new Set();
+      for (let i = 0; mix.length < 14 && (i < songs.length || i < sets.length); i++){
+        for (const t of [songs[i], i % 2 ? null : sets[i >> 1]]) if (t && !seen.has(t.id)){ seen.add(t.id); mix.push(t); }
+      }
+      const box = $('#fy' + k); if (!box) return;
+      box.innerHTML = mix.map((t, i) => card(t, 'fy' + k, i)).join('');
+      lists['fy' + k] = { tracks: mix, ctx: 'fy:' + a };
+    }catch{ const box = $('#fy' + k); if (box) box.remove(); }
+  });
+}
+function renderSets(main){
+  const sets = allSets();
+  main.innerHTML = `<div class="main-inner">
+    <div class="sec-h" style="align-items:center"><h1 class="greet" style="margin:0">Live sets</h1><button class="btn ghost" onclick="addCustomSet()">+ Eigen toevoegen</button></div>
+    <p style="color:var(--muted);margin:6px 0 4px">Volledige sets en mixes van YouTube. Lange sets onthouden waar je was.</p>
+    ${sets.map((s, k) => `<div class="sec-h"><h2>${s[3]} ${esc(s[0])}</h2><a href="#/set/${encodeURIComponent(s[0])}">Alles tonen</a></div><div class="row" id="setrow${k}"><div class="spinner"></div></div>`).join('')}
+  </div>`;
+  sets.forEach(async (s, k) => {
+    try{
+      const res = await search(s[1], 'sets');
+      const box = $('#setrow' + k); if (!box) return;
+      lists['sr' + k] = { tracks: res, ctx: 'set:' + s[0] };
+      box.innerHTML = res.slice(0, 12).map((t, i) => card(t, 'sr' + k, i)).join('') || '<div class="empty">Niets gevonden</div>';
+    }catch(e){ const box = $('#setrow' + k); if (box) box.innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+  });
+}
+async function addCustomSet(){
+  const name = await prompt2('Live sets toevoegen (artiest of festival)', '', 'Toevoegen');
+  if (!name) return;
+  customSets.push({ name, q: name }); store.set('customSets', customSets);
+  location.hash = '#/set/' + encodeURIComponent(name);
+}
+function removeCustomSet(name){
+  customSets = customSets.filter(c => c.name !== name); store.set('customSets', customSets); location.hash = '#/sets';
+}
+async function renderSet(main, name){
+  const S = allSets().find(x => x[0] === name) || [name, name, '#3a3a46', '🎧', true];
+  main.innerHTML = `<div class="hero" style="--hero:${S[2]}"><div class="cov" style="background:${S[2]};display:grid;place-items:center;font-size:90px">${S[3]}</div>
+    <div style="min-width:0"><div class="kind">Live sets</div><h1>${esc(S[0])}</h1><div class="meta">Volledige sets van YouTube</div></div></div>
+    <div class="actions"><button class="bigplay" id="splay" title="Afspelen">${I.play}</button>
+      ${S[4] ? `<button class="btn ghost" onclick="removeCustomSet(${esc(JSON.stringify(S[0]))})">Verwijderen</button>` : ''}</div>
+    <div class="main-inner" style="padding-top:0" id="setres"><div class="spinner"></div></div>`;
+  try{
+    const res = await search(S[1], 'sets');
+    if (route().s !== name) return;
+    $('#setres').innerHTML = trackTable('set', res, { ctx:'set:' + name }) || '<div class="empty">Niets gevonden</div>';
+    const bp = $('#splay'); bp.dataset.ctx = 'set:' + name; bp.onclick = () => playCtx('set:' + name, res);
+    updatePlayUI(); markPlaying();
+  }catch(e){ $('#setres').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
 }
 
 function renderHome(main){
@@ -752,6 +893,11 @@ function renderHome(main){
   main.innerHTML = `<div class="main-inner">
     <h1 class="greet">${greeting()}</h1>
     <div class="quick">${quick.join('')}</div>
+    ${(() => { const cont = recent.filter(t => t.set && positions[t.id]); lists.cont = { tracks: cont, ctx:'cont' };
+      return cont.length ? `<h2>Verder luisteren</h2><div class="row">${cont.slice(0,10).map((t,i) => card(t,'cont',i)).join('')}</div>` : ''; })()}
+    <div class="sec-h"><h2>Hardstyle live sets</h2><a href="#/sets">Alles tonen</a></div>
+    <div class="chips">${SETS.slice(0,4).map(setChip).join('')}</div>
+    <div id="forYou"></div>
     ${recent.length ? `<h2>Onlangs afgespeeld</h2><div class="cards">${recent.slice(0,12).map((t,i) => card(t,'recent',i)).join('')}</div>` : ''}
     <h2>Ontdek</h2><div class="chips">${GENRES.slice(0,8).map(chip).join('')}</div>
     ${!recent.length ? `<div class="empty" style="margin-top:20px"><div class="big">Welkom bij Claude Music</div>Zoek een artiest of nummer — alles komt van YouTube.<br><br><a class="btn" href="#/zoeken">${I.search.replace('<svg','<svg width="18" height="18"')} Zoeken</a></div>` : ''}
@@ -759,10 +905,12 @@ function renderHome(main){
 }
 const chip = ([name, color, emoji]) => `<a class="chip" style="background:${color}" href="#/genre/${encodeURIComponent(name)}">${esc(name)}<span>${emoji}</span></a>`;
 
-let searchTimer = null, searchSeq = 0;
+let searchTimer = null, searchSeq = 0, searchMode = 'songs';
+function setSearchMode(m){ searchMode = m; document.querySelectorAll('.seg button').forEach(b => b.classList.toggle('on', b.dataset.m === m)); doSearch($('#q').value); }
 function renderSearch(main, q){
   main.innerHTML = `<div class="main-inner">
-    <div class="searchbox"><label>${I.search}<input id="q" type="search" placeholder="Wat wil je horen? (of plak een YouTube-link)" autocomplete="off" enterkeyhint="search"></label></div>
+    <div class="searchbox"><label>${I.search}<input id="q" type="search" placeholder="Wat wil je horen? (of plak een YouTube-link)" autocomplete="off" enterkeyhint="search"></label>
+    <div class="seg"><button data-m="songs" class="${searchMode==='songs'?'on':''}" onclick="setSearchMode('songs')">Nummers</button><button data-m="sets" class="${searchMode==='sets'?'on':''}" onclick="setSearchMode('sets')">Live sets &amp; mixes</button></div></div>
     <div id="sres"></div></div>`;
   const inp = $('#q'); inp.value = q || '';
   inp.addEventListener('input', () => {
@@ -779,7 +927,7 @@ async function doSearch(q){
   if (!q.trim()){ el.innerHTML = `<h2>Alles doorbladeren</h2><div class="chips">${GENRES.map(chip).join('')}</div>`; return; }
   el.innerHTML = '<div class="spinner"></div>';
   try{
-    const res = await search(q);
+    const res = await search(q, searchMode);
     if (seq !== searchSeq) return;
     if (!res.length){ el.innerHTML = `<div class="empty"><div class="big">Geen resultaten voor “${esc(q)}”</div>Probeer andere woorden.</div>`; return; }
     const top = res[0];
@@ -787,7 +935,7 @@ async function doSearch(q){
       <h2 style="margin-top:6px">Beste resultaat</h2>
       <button class="card" style="display:flex;gap:18px;align-items:center;background:var(--panel2);padding:18px" onclick="playFrom('sres',0)">
         <img src="${thumb(top.id)}" style="width:110px;height:110px;border-radius:8px;object-fit:cover;flex:none" alt="">
-        <div style="min-width:0"><div class="t" style="font-size:24px;letter-spacing:-.4px">${esc(top.title)}</div><div class="s" style="font-size:14px">Nummer · ${esc(top.artist)}</div></div>
+        <div style="min-width:0"><div class="t" style="font-size:24px;letter-spacing:-.4px">${esc(top.title)}</div><div class="s" style="font-size:14px">${top.set ? 'Live set · ' + esc(top.duration) : 'Nummer'} · ${esc(top.artist)}</div></div>
       </button>
       <h2>Nummers</h2>
       ${trackTable('sres', res, { ctx: 'search:' + q, header:false })}
