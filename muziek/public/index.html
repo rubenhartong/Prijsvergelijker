@@ -1,0 +1,896 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#121216">
+<title>Draaitafel</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<style>
+:root{
+  --bg:#0e0e11; --panel:#16161b; --panel2:#1e1e25; --hover:#2a2a33; --line:#2c2c35;
+  --text:#f2f2f5; --muted:#a0a0ad; --dim:#6c6c78;
+  --accent:#ff6b4a; --accent2:#ffb347; --accent-ink:#1a0b06;
+  --radius:10px; --bar:84px; --nav:0px;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text)}
+body{overflow:hidden;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;padding:0}
+input{font:inherit;color:inherit}
+a{color:inherit;text-decoration:none}
+svg{display:block}
+.app{display:grid;grid-template-columns:240px 1fr 340px;grid-template-rows:1fr var(--bar);height:100dvh;gap:8px;padding:8px}
+.app.no-np{grid-template-columns:240px 1fr}
+.app.no-np .np{display:none}
+
+/* zijbalk */
+.side{background:var(--panel);border-radius:var(--radius);display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.brand{display:flex;align-items:center;gap:10px;padding:18px 18px 10px;font-weight:800;font-size:19px;letter-spacing:-.3px}
+.brand .logo{width:30px;height:30px}
+.nav a{display:flex;align-items:center;gap:14px;padding:10px 18px;color:var(--muted);font-weight:600;border-radius:8px;margin:0 6px}
+.nav a:hover{color:var(--text)}
+.nav a.active{color:var(--text);background:var(--panel2)}
+.nav svg{width:22px;height:22px}
+.side h4{margin:18px 18px 6px;font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--dim);display:flex;justify-content:space-between;align-items:center}
+.side h4 button{color:var(--muted);font-size:20px;line-height:1;width:26px;height:26px;border-radius:50%}
+.side h4 button:hover{background:var(--hover);color:var(--text)}
+.pl-list{overflow:auto;flex:1;padding:0 6px 10px}
+.pl-item{display:flex;align-items:center;gap:10px;padding:6px 10px;border-radius:8px;color:var(--muted)}
+.pl-item:hover{background:var(--panel2);color:var(--text)}
+.pl-item.active{background:var(--panel2);color:var(--text)}
+.pl-item .cov{width:40px;height:40px;border-radius:6px;flex:none}
+.pl-item .t{font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pl-item .s{font-size:12px;color:var(--dim)}
+
+/* hoofdgedeelte */
+.main{background:var(--panel);border-radius:var(--radius);overflow:auto;min-height:0;position:relative}
+.main-inner{padding:20px 24px 40px}
+.hero{padding:40px 24px 24px;display:flex;gap:24px;align-items:flex-end;background:linear-gradient(180deg,var(--hero,#5a2a20) 0%, var(--panel) 100%)}
+.hero .cov{width:200px;height:200px;border-radius:8px;box-shadow:0 8px 40px rgba(0,0,0,.5);flex:none}
+.hero .kind{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px}
+.hero h1{font-size:clamp(28px,5vw,64px);margin:6px 0 10px;letter-spacing:-1.5px;line-height:1.05;word-break:break-word}
+.hero .meta{color:var(--muted);font-size:14px}
+.actions{display:flex;align-items:center;gap:18px;padding:18px 24px}
+.bigplay{width:56px;height:56px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;box-shadow:0 6px 20px rgba(255,107,74,.35);transition:transform .1s}
+.bigplay:hover{transform:scale(1.05)}
+.bigplay svg{width:24px;height:24px}
+.iconbtn{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;color:var(--muted)}
+.iconbtn:hover{color:var(--text)}
+.iconbtn svg{width:22px;height:22px}
+.iconbtn.on{color:var(--accent)}
+h2{font-size:22px;margin:26px 0 12px;letter-spacing:-.3px}
+h2:first-child{margin-top:4px}
+.greet{font-size:30px;margin:0 0 18px;letter-spacing:-.6px}
+
+.quick{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
+.quick a{display:flex;align-items:center;gap:12px;background:rgba(255,255,255,.06);border-radius:6px;overflow:hidden;font-weight:700;font-size:14px;height:56px;padding-right:10px}
+.quick a:hover{background:rgba(255,255,255,.12)}
+.quick .cov{width:56px;height:56px;flex:none}
+
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px}
+.card{background:transparent;padding:12px;border-radius:8px;position:relative;text-align:left;display:block}
+.card:hover{background:var(--panel2)}
+.card .img{aspect-ratio:1;border-radius:6px;overflow:hidden;margin-bottom:10px;position:relative;background:#222}
+.card img{width:100%;height:100%;object-fit:cover}
+.card .t{font-weight:700;font-size:14px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.card .s{color:var(--muted);font-size:13px;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card .fab{position:absolute;right:8px;bottom:8px;width:44px;height:44px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;opacity:0;transform:translateY(6px);transition:.15s;box-shadow:0 6px 14px rgba(0,0,0,.4)}
+.card:hover .fab{opacity:1;transform:none}
+.card .fab svg{width:18px;height:18px}
+
+.chips{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:14px}
+.chip{height:100px;border-radius:8px;padding:14px;font-weight:800;font-size:20px;position:relative;overflow:hidden;text-align:left;letter-spacing:-.3px}
+.chip:hover{filter:brightness(1.1)}
+.chip span{position:absolute;right:-10px;bottom:-14px;font-size:64px;transform:rotate(18deg);opacity:.85}
+
+.searchbox{position:sticky;top:0;z-index:5;background:var(--panel);padding:16px 24px 8px;margin:-20px -24px 10px}
+.searchbox label{display:flex;align-items:center;gap:10px;background:var(--panel2);border-radius:999px;padding:0 16px;height:48px;border:2px solid transparent}
+.searchbox label:focus-within{border-color:var(--text)}
+.searchbox input{flex:1;background:none;border:0;outline:0;font-size:16px;min-width:0}
+.searchbox svg{width:20px;height:20px;color:var(--muted)}
+
+/* tracklijst */
+.tracks{display:flex;flex-direction:column}
+.thead,.tr{display:grid;grid-template-columns:36px minmax(0,1fr) 36px 56px 36px;gap:12px;align-items:center;padding:0 12px}
+.thead{color:var(--dim);font-size:12px;text-transform:uppercase;letter-spacing:1px;height:36px;border-bottom:1px solid var(--line);margin-bottom:8px}
+.tr{height:60px;border-radius:6px;color:var(--muted);font-size:14px}
+.tr:hover,.tr.sel{background:var(--hover)}
+.tr .n{text-align:center;font-variant-numeric:tabular-nums}
+.tr .n .pi{display:none}
+.tr:hover .n .num{display:none}
+.tr:hover .n .pi{display:grid;place-items:center;color:var(--text)}
+.tr .n svg{width:16px;height:16px;margin:auto}
+.tr .info{display:flex;align-items:center;gap:12px;min-width:0}
+.tr .info img{width:44px;height:44px;border-radius:4px;object-fit:cover;flex:none;background:#222}
+.tr .tt{color:var(--text);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:15px}
+.tr .ta{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:13px}
+.tr.playing .tt,.tr.playing .num{color:var(--accent)}
+.tr .d{text-align:right;font-variant-numeric:tabular-nums}
+.tr .like,.tr .more{opacity:0;color:var(--muted)}
+.tr:hover .like,.tr:hover .more,.tr .like.on{opacity:1}
+.tr .like.on{color:var(--accent)}
+.tr .like svg,.tr .more svg{width:18px;height:18px;margin:auto}
+.tr .like:hover,.tr .more:hover{color:var(--text)}
+.eq{display:inline-flex;gap:2px;align-items:flex-end;height:14px}
+.eq i{width:3px;background:var(--accent);animation:eq 1s infinite ease-in-out}
+.eq i:nth-child(2){animation-delay:-.4s}.eq i:nth-child(3){animation-delay:-.7s}
+.paused .eq i{animation-play-state:paused}
+@keyframes eq{0%,100%{height:3px}50%{height:14px}}
+
+.empty{color:var(--muted);padding:30px 0;text-align:center}
+.empty .big{font-size:22px;color:var(--text);font-weight:700;margin-bottom:8px}
+.btn{display:inline-flex;align-items:center;gap:8px;background:var(--text);color:#000;font-weight:700;border-radius:999px;padding:10px 22px}
+.btn:hover{transform:scale(1.03)}
+.btn.ghost{background:transparent;color:var(--text);border:1px solid var(--dim)}
+.spinner{width:28px;height:28px;border:3px solid var(--hover);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;margin:40px auto}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* nu speelt */
+.np{background:var(--panel);border-radius:var(--radius);overflow:auto;min-height:0;padding:16px;display:flex;flex-direction:column;gap:14px}
+.np .hd{display:flex;justify-content:space-between;align-items:center;font-weight:700}
+.vidwrap{flex:none;position:relative;width:100%;aspect-ratio:16/9;border-radius:8px;overflow:hidden;background:#000}
+.vidwrap iframe,#ytp{position:absolute;inset:0;width:100%;height:100%}
+.np .big-t{font-size:22px;font-weight:800;letter-spacing:-.4px;line-height:1.2}
+.np .big-a{color:var(--muted)}
+.np .qh{font-weight:700;margin-top:6px;display:flex;justify-content:space-between;align-items:center}
+.np .qh button{font-size:13px;color:var(--muted)}
+.np .qh button:hover{color:var(--text)}
+.qitem{display:flex;gap:10px;align-items:center;padding:6px;border-radius:6px;cursor:pointer}
+.qitem:hover{background:var(--hover)}
+.qitem img{width:40px;height:40px;object-fit:cover;border-radius:4px;flex:none}
+.qitem .t{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.qitem .a{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.qitem .x{margin-left:auto;color:var(--dim);opacity:0;width:28px;height:28px;flex:none}
+.qitem:hover .x{opacity:1}
+.qitem .x:hover{color:var(--text)}
+.qitem>div{min-width:0}
+
+/* spelerbalk */
+.bar{grid-column:1/-1;display:grid;grid-template-columns:1fr 2fr 1fr;align-items:center;padding:0 8px;gap:16px}
+.bar .now{display:flex;align-items:center;gap:12px;min-width:0}
+.bar .now img[src^=data]{visibility:hidden}
+.bar .now img{width:56px;height:56px;border-radius:6px;object-fit:cover;background:#222;flex:none}
+.bar .now .t{font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar .now .a{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar .now>div{min-width:0}
+.ctrl{display:flex;flex-direction:column;align-items:center;gap:6px}
+.ctrl .btns{display:flex;align-items:center;gap:18px}
+.ctrl .btns .iconbtn{width:32px;height:32px}
+.ctrl .btns .iconbtn svg{width:18px;height:18px}
+.pp{width:36px;height:36px;border-radius:50%;background:var(--text);color:#000;display:grid;place-items:center}
+.pp:hover{transform:scale(1.06)}
+.pp svg{width:16px;height:16px}
+.prog{display:flex;align-items:center;gap:8px;width:100%;max-width:620px;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.prog span{width:38px;text-align:center}
+.range{-webkit-appearance:none;appearance:none;flex:1;height:4px;border-radius:2px;background:linear-gradient(to right,var(--text) var(--p,0%),#4a4a55 var(--p,0%));outline:none;cursor:pointer}
+.range:hover{background:linear-gradient(to right,var(--accent) var(--p,0%),#4a4a55 var(--p,0%))}
+.range::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:#fff;opacity:0}
+.range:hover::-webkit-slider-thumb{opacity:1}
+.range::-moz-range-thumb{width:12px;height:12px;border-radius:50%;background:#fff;border:0}
+.right{display:flex;justify-content:flex-end;align-items:center;gap:8px}
+.right .range{max-width:110px}
+.dot-badge{position:relative}
+.dot-badge.on::after{content:"";position:absolute;bottom:0;left:50%;width:4px;height:4px;border-radius:50%;background:var(--accent);transform:translateX(-50%)}
+.rep1{position:absolute;font-size:8px;font-weight:800;top:4px;right:4px}
+
+/* menu, dialoog, toast */
+.menu{position:fixed;z-index:50;background:#26262f;border-radius:6px;padding:4px;min-width:220px;box-shadow:0 16px 40px rgba(0,0,0,.6);max-height:70vh;overflow:auto}
+.menu button{display:flex;width:100%;text-align:left;padding:10px 12px;border-radius:4px;font-size:14px;gap:10px;align-items:center}
+.menu button:hover{background:var(--hover)}
+.menu hr{border:0;border-top:1px solid var(--line);margin:4px 0}
+.menu .lbl{font-size:11px;color:var(--dim);padding:8px 12px 4px;text-transform:uppercase;letter-spacing:1px}
+.scrim{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.6);display:grid;place-items:center;padding:16px}
+.dialog{background:#24242c;border-radius:10px;padding:22px;width:100%;max-width:420px}
+.dialog h3{margin:0 0 14px}
+.dialog input{width:100%;background:#3a3a45;border:1px solid transparent;border-radius:6px;padding:12px;outline:0;margin-bottom:16px}
+.dialog input:focus{border-color:var(--muted)}
+.dialog .row{display:flex;justify-content:flex-end;gap:10px}
+.toast{position:fixed;left:50%;bottom:calc(var(--bar) + var(--nav) + 24px);transform:translateX(-50%);background:#e9e9ee;color:#111;padding:10px 18px;border-radius:8px;font-weight:600;font-size:14px;z-index:70;box-shadow:0 8px 24px rgba(0,0,0,.4);max-width:90vw}
+
+/* mobiel */
+.mnav{display:none}
+.mini-vid-toggle{display:none}
+@media (max-width:1100px){
+  .app,.app.no-np{grid-template-columns:220px 1fr}
+  .np{position:fixed;inset:0;z-index:40;border-radius:0;transform:translateY(100%);transition:transform .25s;padding:18px 18px calc(18px + env(safe-area-inset-bottom))}
+  .np.open{transform:none}
+  .app.no-np .np{display:flex}
+  .np-close{display:grid!important}
+}
+@media (max-width:720px){
+  :root{--bar:64px;--nav:58px}
+  .app,.app.no-np{grid-template-columns:1fr;grid-template-rows:1fr var(--bar) var(--nav);padding:0;gap:0;height:100dvh}
+  .side{display:none}
+  .main{border-radius:0}
+  .main-inner{padding:16px 16px 30px}
+  .searchbox{margin:-16px -16px 10px;padding:12px 16px 8px}
+  .hero{padding:28px 16px 16px;flex-direction:column;align-items:flex-start;gap:14px}
+  .hero .cov{width:160px;height:160px;align-self:center}
+  .actions{padding:12px 16px}
+  .bar{grid-template-columns:1fr auto;padding:0 10px;margin:0 6px;background:#3a2620;border-radius:8px;height:56px;align-self:center;position:relative}
+  .bar .now img{width:40px;height:40px}
+  .ctrl .prog,.right,.ctrl .btns .hide-m{display:none}
+  .ctrl .btns{gap:6px}
+  .ctrl .pp{background:none;color:var(--text)}
+  .ctrl .pp svg{width:22px;height:22px}
+  .bar .mprog{position:absolute;left:8px;right:8px;bottom:0;height:2px;background:rgba(255,255,255,.2);border-radius:2px;overflow:hidden}
+  .bar .mprog i{display:block;height:100%;background:var(--text);width:0}
+  .mnav{display:flex;justify-content:space-around;align-items:center;background:linear-gradient(transparent,#000 40%);padding-bottom:env(safe-area-inset-bottom)}
+  .mnav a{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11px;color:var(--muted);padding:6px 16px}
+  .mnav a.active{color:var(--text)}
+  .mnav svg{width:24px;height:24px}
+  .thead{display:none}
+  .tr{grid-template-columns:minmax(0,1fr) 36px 36px;padding:0 4px}
+  .tr .n,.tr .d{display:none}
+  .tr .like{opacity:1}
+  .tr .more{opacity:1}
+  .card .fab{opacity:1;transform:none;width:38px;height:38px}
+  .cards{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:6px}
+  .quick{grid-template-columns:1fr 1fr}
+  .chips{grid-template-columns:1fr 1fr}
+  .greet{font-size:24px}
+}
+.bar .mprog{display:none}
+@media (max-width:720px){.bar .mprog{display:block}}
+.np-close{display:none}
+</style>
+</head>
+<body>
+<div class="app no-np" id="app">
+  <aside class="side">
+    <div class="brand"><img class="logo" src="icon.svg" alt=""> Draaitafel</div>
+    <nav class="nav">
+      <a href="#/" data-nav="home"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3 2 11h3v9h5v-6h4v6h5v-9h3z"/></svg>Home</a>
+      <a href="#/zoeken" data-nav="zoeken"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>Zoeken</a>
+      <a href="#/bibliotheek" data-nav="bibliotheek"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 4v16M9 4v16M14 4l6 16"/></svg>Bibliotheek</a>
+    </nav>
+    <h4>Afspeellijsten <button title="Nieuwe afspeellijst" onclick="newPlaylist()">+</button></h4>
+    <div class="pl-list" id="sidePl"></div>
+  </aside>
+
+  <main class="main" id="main"></main>
+
+  <section class="np" id="np">
+    <div class="hd">
+      <span>Nu speelt</span>
+      <button class="iconbtn np-close" onclick="toggleNP(false)" title="Sluiten"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="m6 9 6 6 6-6"/></svg></button>
+    </div>
+    <div class="vidwrap"><div id="ytp"></div></div>
+    <div>
+      <div class="big-t" id="npTitle">—</div>
+      <div class="big-a" id="npArtist"></div>
+    </div>
+    <div class="qh"><span>Volgende in wachtrij</span><button onclick="clearUpcoming()">Wissen</button></div>
+    <div id="npQueue"></div>
+  </section>
+
+  <footer class="bar" id="bar">
+    <div class="now" id="barNow" onclick="if(innerWidth<=1100)toggleNP(true)">
+      <img id="barImg" alt="" src="data:image/gif;base64,R0lGODlhAQABAAAAACw=">
+      <div><div class="t" id="barTitle">Kies een nummer</div><div class="a" id="barArtist">Zoek iets om te beginnen</div></div>
+      <button class="iconbtn" id="barLike" title="Vind ik leuk" onclick="event.stopPropagation();toggleLike(cur())"></button>
+    </div>
+    <div class="ctrl">
+      <div class="btns">
+        <button class="iconbtn dot-badge hide-m" id="btnShuffle" title="Shuffle" onclick="toggleShuffle()"></button>
+        <button class="iconbtn hide-m" title="Vorige" onclick="prev()"></button>
+        <button class="pp" id="btnPlay" title="Afspelen" onclick="togglePlay()"></button>
+        <button class="iconbtn" title="Volgende" onclick="next(true)"></button>
+        <button class="iconbtn dot-badge hide-m" id="btnRepeat" title="Herhalen" onclick="cycleRepeat()" style="position:relative"></button>
+      </div>
+      <div class="prog"><span id="tCur">0:00</span><input type="range" class="range" id="seek" min="0" max="1000" value="0"><span id="tDur">0:00</span></div>
+    </div>
+    <div class="right">
+      <button class="iconbtn" id="btnNP" title="Nu speelt / video" onclick="toggleNP()"></button>
+      <button class="iconbtn" id="btnMute" title="Dempen" onclick="toggleMute()"></button>
+      <input type="range" class="range" id="vol" min="0" max="100" value="80">
+    </div>
+    <div class="mprog"><i id="mprog"></i></div>
+  </footer>
+
+  <nav class="mnav">
+    <a href="#/" data-nav="home"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3 2 11h3v9h5v-6h4v6h5v-9h3z"/></svg>Home</a>
+    <a href="#/zoeken" data-nav="zoeken"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>Zoeken</a>
+    <a href="#/bibliotheek" data-nav="bibliotheek"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 4v16M9 4v16M14 4l6 16"/></svg>Bibliotheek</a>
+  </nav>
+</div>
+
+<script>
+/* ---------- iconen ---------- */
+const I = {
+  play:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15a1 1 0 0 0 1.5.86l12.5-7.5a1 1 0 0 0 0-1.72L8.5 3.64A1 1 0 0 0 7 4.5z"/></svg>',
+  pause:'<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>',
+  next:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 5v14l10-7zM17 5h2v14h-2z"/></svg>',
+  prev:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 5v14L9 12zM5 5h2v14H5z"/></svg>',
+  shuffle:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/></svg>',
+  repeat:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14M7 22l-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg>',
+  heart:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7.5-4.6-9.5-9.3C1 7.9 3.4 4 7.2 4c2 0 3.6 1.1 4.8 2.7C13.2 5.1 14.8 4 16.8 4 20.6 4 23 7.9 21.5 11.7 19.5 16.4 12 21 12 21z"/></svg>',
+  heartOn:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21s-7.5-4.6-9.5-9.3C1 7.9 3.4 4 7.2 4c2 0 3.6 1.1 4.8 2.7C13.2 5.1 14.8 4 16.8 4 20.6 4 23 7.9 21.5 11.7 19.5 16.4 12 21 12 21z"/></svg>',
+  more:'<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>',
+  vol:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="M16 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12"/></svg>',
+  mute:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="m17 9 5 5M22 9l-5 5"/></svg>',
+  np:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="m10 9 4 2-4 2z" fill="currentColor"/><path d="M7 21h10"/></svg>',
+  x:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>',
+  clock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16" style="margin-left:auto"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+  search:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>',
+};
+const eqHTML = '<span class="eq"><i></i><i></i><i></i></span>';
+
+/* ---------- opslag ---------- */
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem('dt.'+k); return v ? JSON.parse(v) : d; }catch{ return d; } },
+  set(k, v){ try{ localStorage.setItem('dt.'+k, JSON.stringify(v)); }catch{} },
+};
+let likes = store.get('likes', []);
+let playlists = store.get('playlists', []);
+let recent = store.get('recent', []);
+const saveAll = () => { store.set('likes', likes); store.set('playlists', playlists); store.set('recent', recent); };
+
+/* ---------- hulpjes ---------- */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const thumb = (id, q='hqdefault') => `https://i.ytimg.com/vi/${id}/${q}.jpg`;
+const fmt = s => { s = Math.max(0, Math.floor(s||0)); const h = Math.floor(s/3600), m = Math.floor(s%3600/60), x = String(s%60).padStart(2,'0'); return h ? `${h}:${String(m).padStart(2,'0')}:${x}` : `${m}:${x}`; };
+const uid = () => Math.random().toString(36).slice(2, 10);
+
+// "Artiest - Titel (Official Video)" -> nette titel + artiest
+function clean(t){
+  if (t._c) return t;
+  let title = t.title || '', artist = t.artist || '';
+  title = title.replace(/\s*[\(\[][^\)\]]*(official|video|audio|lyric|lyrics|visuali[sz]er|clip|hd|hq|4k|remaster(ed)?|music video|videoclip|m\/v|mv)[^\)\]]*[\)\]]/ig, '')
+               .replace(/\s*\|\s*.*$/, '').replace(/\s+(official\s+)?(music\s+)?(video|audio)$/i,'').trim();
+  const m = title.match(/^(.+?)\s+[-–—]\s+(.+)$/);
+  if (m) { artist = m[1].trim(); title = m[2].trim(); }
+  else artist = artist.replace(/\s*-\s*Topic$/i,'').replace(/VEVO$/i,'').replace(/\s*Official$/i,'').trim();
+  title = title.replace(/^["“](.+)["”]$/, '$1');
+  return { id:t.id, title: title || t.title, artist, duration:t.duration, seconds:t.seconds, _c:1 };
+}
+const isLiked = t => t && likes.some(x => x.id === t.id);
+function plCover(pl){
+  const ids = [...new Set(pl.tracks.map(t => t.id))].slice(0,4);
+  if (!ids.length) return `<div class="cov" style="background:linear-gradient(135deg,#3b3b48,#1f1f27);display:grid;place-items:center;color:#777"><svg viewBox="0 0 24 24" width="40%" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></div>`;
+  if (ids.length < 4) return `<img class="cov" style="object-fit:cover" src="${thumb(ids[0])}" alt="">`;
+  return `<div class="cov" style="display:grid;grid-template-columns:1fr 1fr;overflow:hidden">${ids.map(i=>`<img src="${thumb(i,'default')}" style="width:100%;height:100%;object-fit:cover" alt="">`).join('')}</div>`;
+}
+const likedCover = `<div class="cov" style="background:linear-gradient(135deg,#ff6b4a,#7a2bd6);display:grid;place-items:center;color:#fff"><svg viewBox="0 0 24 24" width="42%" fill="currentColor"><path d="M12 21s-7.5-4.6-9.5-9.3C1 7.9 3.4 4 7.2 4c2 0 3.6 1.1 4.8 2.7C13.2 5.1 14.8 4 16.8 4 20.6 4 23 7.9 21.5 11.7 19.5 16.4 12 21 12 21z"/></svg></div>`;
+
+function toast(msg){
+  const el = document.createElement('div'); el.className='toast'; el.textContent=msg;
+  document.body.appendChild(el); setTimeout(()=>el.remove(), 2600);
+}
+
+/* ---------- zoeken ---------- */
+const searchCache = new Map();
+async function search(q){
+  q = q.trim(); if (!q) return [];
+  const id = ytId(q);
+  if (searchCache.has(q)) return searchCache.get(q);
+  const r = await fetch('api/search?q=' + encodeURIComponent(id || q));
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.error || 'Zoeken mislukt');
+  // lange mixen/concerten (> 20 min) weglaten, tenzij er dan te weinig over is
+  let res = j.results.filter(t => !t.seconds || t.seconds <= 1200);
+  if (res.length < 5) res = j.results;
+  res = res.map(clean);
+  if (id) res.sort((a,b) => (b.id===id) - (a.id===id));
+  searchCache.set(q, res);
+  return res;
+}
+function ytId(s){
+  const m = s.match(/(?:youtu\.be\/|v=|\/shorts\/|\/embed\/|music\.youtube\.com\/watch\?v=)([\w-]{11})/);
+  return m ? m[1] : null;
+}
+
+/* ---------- speler ---------- */
+let player = null, ready = false, pendingId = null, errStreak = 0;
+let queue = [], qi = -1, shuffle = store.get('shuffle', false), repeat = store.get('repeat', 'off');
+let playing = false, muted = false, volume = store.get('volume', 80);
+let order = []; // speelvolgorde bij shuffle (indices in queue)
+let context = null; // waar de wachtrij vandaan komt (route)
+
+window.onYouTubeIframeAPIReady = () => {
+  player = new YT.Player('ytp', {
+    width:'100%', height:'100%',
+    playerVars:{ playsinline:1, rel:0, modestbranding:1, origin: location.origin },
+    events:{
+      onReady(){ ready = true; player.setVolume(volume); if (pendingId) { player.loadVideoById(pendingId); pendingId = null; } },
+      onStateChange(e){
+        if (e.data === YT.PlayerState.PLAYING){ playing = true; errStreak = 0; }
+        else if (e.data === YT.PlayerState.PAUSED){ playing = false; }
+        else if (e.data === YT.PlayerState.ENDED){ playing = false; onEnded(); }
+        updatePlayUI();
+      },
+      onError(e){
+        const t = cur();
+        if (++errStreak >= Math.min(queue.length, 8)){ errStreak = 0; playing = false; updatePlayUI(); toast('Deze nummers kunnen niet afgespeeld worden'); return; }
+        toast(`“${t ? t.title : 'Nummer'}” mag niet buiten YouTube spelen — overgeslagen`);
+        setTimeout(() => next(true), 600);
+      },
+    },
+  });
+};
+(function loadYT(){ const s = document.createElement('script'); s.src = 'https://www.youtube.com/iframe_api'; document.head.appendChild(s); })();
+
+const cur = () => queue[qi] || null;
+
+function playList(tracks, start = 0, ctx = null){
+  if (!tracks.length) return;
+  queue = tracks.map(clean); context = ctx;
+  rebuildOrder(start);
+  qi = start;
+  loadCurrent();
+}
+function rebuildOrder(first){
+  order = queue.map((_, i) => i);
+  if (shuffle){
+    order = order.filter(i => i !== first);
+    for (let i = order.length - 1; i > 0; i--){ const j = Math.floor(Math.random()*(i+1)); [order[i], order[j]] = [order[j], order[i]]; }
+    order.unshift(first);
+  }
+}
+function loadCurrent(){
+  const t = cur(); if (!t) return;
+  if (ready) player.loadVideoById(t.id); else pendingId = t.id;
+  playing = true;
+  recent = [t, ...recent.filter(x => x.id !== t.id)].slice(0, 40); store.set('recent', recent);
+  document.title = `${t.title} · ${t.artist}`;
+  $('#app').classList.remove('no-np');
+  if (innerWidth <= 1100 && innerWidth > 720) {} // tablet: paneel blijft dicht tot je erop tikt
+  setMedia(t);
+  updateNowUI(); updatePlayUI();
+}
+function pos(){ return order.indexOf(qi); }
+function next(manual = false){
+  if (!queue.length) return;
+  if (repeat === 'one' && !manual){ player.seekTo(0); player.playVideo(); return; }
+  let p = pos() + 1;
+  if (p >= order.length){
+    if (repeat === 'all' || manual){ if (shuffle) rebuildOrder(order[0]); p = 0; }
+    else { playing = false; updatePlayUI(); return; }
+  }
+  qi = order[p]; loadCurrent();
+}
+function prev(){
+  if (!queue.length) return;
+  if (ready && player.getCurrentTime && player.getCurrentTime() > 3){ player.seekTo(0, true); return; }
+  const p = Math.max(0, pos() - 1); qi = order[p]; loadCurrent();
+}
+function onEnded(){ next(false); }
+function togglePlay(){
+  if (!cur()){ const src = likes.length ? likes : recent; if (src.length) playList(src, 0); else location.hash = '#/zoeken'; return; }
+  if (!ready) return;
+  if (playing) player.pauseVideo(); else player.playVideo();
+}
+function toggleShuffle(){
+  shuffle = !shuffle; store.set('shuffle', shuffle);
+  if (queue.length) rebuildOrder(qi);
+  updatePlayUI(); renderQueue(); toast(shuffle ? 'Shuffle aan' : 'Shuffle uit');
+}
+function cycleRepeat(){
+  repeat = { off:'all', all:'one', one:'off' }[repeat]; store.set('repeat', repeat);
+  updatePlayUI(); toast({ off:'Herhalen uit', all:'Alles herhalen', one:'Dit nummer herhalen' }[repeat]);
+}
+function toggleMute(){
+  if (!ready) return;
+  muted = !muted; muted ? player.mute() : player.unMute(); updatePlayUI();
+}
+function addToQueue(t, nextUp = false){
+  t = clean(t);
+  if (!queue.length){ playList([t], 0); return; }
+  const at = nextUp ? qi + 1 : queue.length;
+  queue.splice(at, 0, t);
+  order = order.map(i => i >= at ? i + 1 : i);
+  const p = pos();
+  order.splice(nextUp ? p + 1 : order.length, 0, at);
+  renderQueue(); toast(nextUp ? 'Speelt hierna' : 'Toegevoegd aan wachtrij');
+}
+function removeUpcoming(p){
+  const idx = order[p]; if (idx === qi) return;
+  queue.splice(idx, 1);
+  order.splice(p, 1);
+  order = order.map(i => i > idx ? i - 1 : i);
+  if (qi > idx) qi--;
+  renderQueue();
+}
+function clearUpcoming(){
+  const t = cur(); if (!t) return;
+  queue = [t]; qi = 0; order = [0]; renderQueue();
+}
+function jumpTo(p){ qi = order[p]; loadCurrent(); }
+
+/* media session: bediening vanaf vergrendelscherm / koptelefoon */
+function setMedia(t){
+  if (!('mediaSession' in navigator)) return;
+  navigator.mediaSession.metadata = new MediaMetadata({ title:t.title, artist:t.artist, album:'Draaitafel',
+    artwork:[{ src:thumb(t.id,'hqdefault'), sizes:'480x360', type:'image/jpeg' }] });
+}
+if ('mediaSession' in navigator){
+  const ms = navigator.mediaSession;
+  ms.setActionHandler('play', () => player && player.playVideo());
+  ms.setActionHandler('pause', () => player && player.pauseVideo());
+  ms.setActionHandler('nexttrack', () => next(true));
+  ms.setActionHandler('previoustrack', prev);
+}
+
+/* voortgang */
+let seeking = false;
+const seekEl = $('#seek'), volEl = $('#vol');
+seekEl.addEventListener('input', () => { seeking = true; const d = ready ? player.getDuration() : 0; $('#tCur').textContent = fmt(d * seekEl.value / 1000); seekEl.style.setProperty('--p', seekEl.value/10 + '%'); });
+seekEl.addEventListener('change', () => { if (ready) player.seekTo(player.getDuration() * seekEl.value / 1000, true); seeking = false; });
+volEl.value = volume; volEl.style.setProperty('--p', volume + '%');
+volEl.addEventListener('input', () => { volume = +volEl.value; volEl.style.setProperty('--p', volume + '%'); if (ready){ player.setVolume(volume); if (muted && volume){ muted = false; player.unMute(); } } store.set('volume', volume); updatePlayUI(); });
+setInterval(() => {
+  if (!ready || !player.getDuration) return;
+  const d = player.getDuration() || 0, c = player.getCurrentTime() || 0;
+  $('#tDur').textContent = fmt(d);
+  $('#mprog').style.width = d ? (c/d*100) + '%' : '0';
+  if (!seeking){ $('#tCur').textContent = fmt(c); const v = d ? Math.round(c/d*1000) : 0; seekEl.value = v; seekEl.style.setProperty('--p', v/10 + '%'); }
+  if ('mediaSession' in navigator && d && navigator.mediaSession.setPositionState){
+    try{ navigator.mediaSession.setPositionState({ duration:d, position:Math.min(c,d), playbackRate:1 }); }catch{}
+  }
+}, 500);
+
+/* ---------- UI bijwerken ---------- */
+function updateNowUI(){
+  const t = cur();
+  $('#barImg').src = t ? thumb(t.id,'mqdefault') : 'data:image/gif;base64,R0lGODlhAQABAAAAACw=';
+  $('#barTitle').textContent = t ? t.title : 'Kies een nummer';
+  $('#barArtist').textContent = t ? t.artist : 'Zoek iets om te beginnen';
+  $('#npTitle').textContent = t ? t.title : '—';
+  $('#npArtist').textContent = t ? t.artist : '';
+  $('#barLike').style.visibility = t ? 'visible' : 'hidden';
+  $('#barLike').innerHTML = isLiked(t) ? I.heartOn : I.heart;
+  $('#barLike').classList.toggle('on', isLiked(t));
+  renderQueue(); markPlaying();
+}
+function updatePlayUI(){
+  $('#btnPlay').innerHTML = playing ? I.pause : I.play;
+  $('#btnPlay').title = playing ? 'Pauze' : 'Afspelen';
+  $('#btnShuffle').classList.toggle('on', shuffle);
+  $('#btnRepeat').classList.toggle('on', repeat !== 'off');
+  $('#btnRepeat').innerHTML = I.repeat + (repeat === 'one' ? '<span class="rep1">1</span>' : '');
+  $('#btnMute').innerHTML = (muted || volume === 0) ? I.mute : I.vol;
+  document.body.classList.toggle('paused', !playing);
+  if ('mediaSession' in navigator) navigator.mediaSession.playbackState = playing ? 'playing' : 'paused';
+  const bp = document.querySelector('.actions .bigplay[data-ctx]');
+  if (bp) bp.innerHTML = (playing && context === bp.dataset.ctx) ? I.pause : I.play;
+}
+function renderQueue(){
+  const el = $('#npQueue'); const p = pos();
+  const up = order.slice(p + 1, p + 41);
+  el.innerHTML = up.length ? up.map((i, k) => { const t = queue[i]; return `
+    <div class="qitem" onclick="jumpTo(${p+1+k})"><img src="${thumb(t.id,'default')}" alt="" loading="lazy">
+      <div><div class="t">${esc(t.title)}</div><div class="a">${esc(t.artist)}</div></div>
+      <button class="x iconbtn" title="Verwijderen" onclick="event.stopPropagation();removeUpcoming(${p+1+k})">${I.x}</button></div>`; }).join('')
+    : `<div style="color:var(--dim);font-size:14px;padding:6px 0">${cur() ? (repeat==='all' && queue.length>1 ? 'Begint daarna opnieuw.' : 'Niets meer in de wachtrij.') : 'Nog niets aan het spelen.'}</div>`;
+}
+function markPlaying(){
+  const t = cur();
+  document.querySelectorAll('.tr[data-id]').forEach(r => {
+    const on = t && r.dataset.id === t.id && (r.dataset.ctx === context || !context);
+    r.classList.toggle('playing', !!on);
+    const n = r.querySelector('.num'); if (n) n.innerHTML = on ? eqHTML : r.dataset.n;
+  });
+}
+function toggleNP(force){
+  if (innerWidth > 1100){ $('#app').classList.toggle('no-np', force === undefined ? !$('#app').classList.contains('no-np') : !force); return; }
+  $('#np').classList.toggle('open', force === undefined ? !$('#np').classList.contains('open') : force);
+}
+$('#btnShuffle').innerHTML = I.shuffle;
+document.querySelector('.ctrl .btns button[title=Vorige]').innerHTML = I.prev;
+document.querySelector('.ctrl .btns button[title=Volgende]').innerHTML = I.next;
+$('#btnNP').innerHTML = I.np;
+
+/* ---------- vind-ik-leuk & afspeellijsten ---------- */
+function toggleLike(t){
+  if (!t) return; t = clean(t);
+  if (isLiked(t)){ likes = likes.filter(x => x.id !== t.id); toast('Verwijderd uit Leuke nummers'); }
+  else { likes = [t, ...likes]; toast('Toegevoegd aan Leuke nummers'); }
+  store.set('likes', likes);
+  updateNowUI(); renderSide();
+  document.querySelectorAll(`.tr[data-id="${t.id}"] .like`).forEach(b => { b.classList.toggle('on', isLiked(t)); b.innerHTML = isLiked(t) ? I.heartOn : I.heart; });
+  if (route().name === 'liked') render();
+}
+function prompt2(title, value = '', okText = 'Opslaan'){
+  return new Promise(res => {
+    const s = document.createElement('div'); s.className = 'scrim';
+    s.innerHTML = `<form class="dialog"><h3>${esc(title)}</h3><input maxlength="80" value="${esc(value)}" placeholder="Naam"><div class="row"><button type="button" class="btn ghost">Annuleren</button><button class="btn">${esc(okText)}</button></div></form>`;
+    document.body.appendChild(s);
+    const inp = s.querySelector('input'); inp.focus(); inp.select();
+    const done = v => { s.remove(); res(v); };
+    s.querySelector('.ghost').onclick = () => done(null);
+    s.onclick = e => { if (e.target === s) done(null); };
+    s.querySelector('form').onsubmit = e => { e.preventDefault(); done(inp.value.trim() || null); };
+  });
+}
+async function newPlaylist(withTrack){
+  const name = await prompt2('Nieuwe afspeellijst', `Mijn afspeellijst #${playlists.length + 1}`, 'Maken');
+  if (!name) return;
+  const pl = { id: uid(), name, tracks: withTrack ? [clean(withTrack)] : [], created: Date.now() };
+  playlists.push(pl); store.set('playlists', playlists); renderSide();
+  if (withTrack) toast(`Toegevoegd aan ${name}`); else location.hash = '#/lijst/' + pl.id;
+}
+function addToPlaylist(plId, t){
+  const pl = playlists.find(p => p.id === plId); if (!pl) return;
+  if (pl.tracks.some(x => x.id === t.id)){ toast('Staat al in ' + pl.name); return; }
+  pl.tracks.push(clean(t)); store.set('playlists', playlists); renderSide(); toast('Toegevoegd aan ' + pl.name);
+  if (route().id === plId) render();
+}
+function removeFromPlaylist(plId, idx){
+  const pl = playlists.find(p => p.id === plId); if (!pl) return;
+  pl.tracks.splice(idx, 1); store.set('playlists', playlists); renderSide(); render();
+}
+async function renamePlaylist(id){
+  const pl = playlists.find(p => p.id === id); const name = await prompt2('Naam wijzigen', pl.name);
+  if (name){ pl.name = name; store.set('playlists', playlists); renderSide(); render(); }
+}
+function deletePlaylist(id){
+  const pl = playlists.find(p => p.id === id);
+  if (!confirm(`“${pl.name}” verwijderen?`)) return;
+  playlists = playlists.filter(p => p.id !== id); store.set('playlists', playlists); renderSide(); location.hash = '#/bibliotheek';
+}
+
+/* ---------- contextmenu ---------- */
+let menuEl = null;
+function closeMenu(){ if (menuEl){ menuEl.remove(); menuEl = null; } }
+document.addEventListener('click', e => { if (menuEl && !menuEl.contains(e.target)) closeMenu(); }, true);
+addEventListener('resize', closeMenu); document.addEventListener('scroll', closeMenu, true);
+function openMenu(x, y, items){
+  closeMenu();
+  menuEl = document.createElement('div'); menuEl.className = 'menu';
+  items.forEach(it => {
+    if (it === '-'){ menuEl.appendChild(document.createElement('hr')); return; }
+    if (it.label){ const d = document.createElement('div'); d.className='lbl'; d.textContent = it.label; menuEl.appendChild(d); return; }
+    const b = document.createElement('button'); b.textContent = it.text;
+    b.onclick = () => { closeMenu(); it.fn(); }; menuEl.appendChild(b);
+  });
+  document.body.appendChild(menuEl);
+  const r = menuEl.getBoundingClientRect();
+  menuEl.style.left = Math.max(8, Math.min(x, innerWidth - r.width - 8)) + 'px';
+  menuEl.style.top = Math.max(8, Math.min(y, innerHeight - r.height - 8)) + 'px';
+}
+function trackMenu(ev, t, plId, idx){
+  ev.stopPropagation(); ev.preventDefault();
+  const items = [
+    { text:'Hierna afspelen', fn:() => addToQueue(t, true) },
+    { text:'Aan wachtrij toevoegen', fn:() => addToQueue(t) },
+    { text: isLiked(t) ? 'Verwijderen uit Leuke nummers' : 'Opslaan in Leuke nummers', fn:() => toggleLike(t) },
+    '-', { label:'Toevoegen aan afspeellijst' },
+    { text:'+ Nieuwe afspeellijst', fn:() => newPlaylist(t) },
+    ...playlists.filter(p => p.id !== plId).map(p => ({ text:p.name, fn:() => addToPlaylist(p.id, t) })),
+  ];
+  if (plId) items.push('-', { text:'Verwijderen uit deze afspeellijst', fn:() => removeFromPlaylist(plId, idx) });
+  items.push('-', { text:'Openen op YouTube', fn:() => open('https://www.youtube.com/watch?v=' + t.id, '_blank') });
+  const x = ev.clientX || ev.currentTarget.getBoundingClientRect().left, y = ev.clientY || ev.currentTarget.getBoundingClientRect().bottom;
+  openMenu(x, y, items);
+}
+
+/* ---------- tracklijst ---------- */
+// lijsten bewaren zodat klik-handlers erbij kunnen zonder JSON in attributen
+const lists = {};
+function trackTable(key, tracks, { ctx, plId, header = true } = {}){
+  lists[key] = { tracks, ctx, plId };
+  if (!tracks.length) return '';
+  return `<div class="tracks">${header ? `<div class="thead"><span style="text-align:center">#</span><span>Titel</span><span></span><span style="display:flex">${I.clock}</span><span></span></div>` : ''}
+    ${tracks.map((t, i) => `<div class="tr" data-id="${t.id}" data-ctx="${esc(ctx||'')}" data-n="${i+1}" onclick="playFrom('${key}',${i})" oncontextmenu="menuFrom(event,'${key}',${i})">
+      <div class="n"><span class="num">${i+1}</span><button class="pi" onclick="event.stopPropagation();playFrom('${key}',${i})" title="Afspelen">${I.play}</button></div>
+      <div class="info"><img src="${thumb(t.id,'mqdefault')}" alt="" loading="lazy"><div style="min-width:0"><div class="tt">${esc(t.title)}</div><div class="ta">${esc(t.artist)}</div></div></div>
+      <button class="like ${isLiked(t)?'on':''}" title="Vind ik leuk" onclick="event.stopPropagation();toggleLike(lists['${key}'].tracks[${i}])">${isLiked(t)?I.heartOn:I.heart}</button>
+      <div class="d">${esc(t.duration || '')}</div>
+      <button class="more" title="Meer" onclick="menuFrom(event,'${key}',${i})">${I.more}</button>
+    </div>`).join('')}</div>`;
+}
+function playFrom(key, i){
+  const l = lists[key]; const t = l.tracks[i]; const c = cur();
+  if (c && c.id === t.id && context === l.ctx){ togglePlay(); return; }
+  playList(l.tracks, i, l.ctx);
+}
+function menuFrom(ev, key, i){ const l = lists[key]; trackMenu(ev, l.tracks[i], l.plId, i); }
+function playCtx(ctx, tracks){
+  if (context === ctx && cur()){ togglePlay(); return; }
+  playList(tracks, shuffle ? Math.floor(Math.random()*tracks.length) : 0, ctx);
+}
+
+/* ---------- routes / pagina's ---------- */
+function route(){
+  const h = location.hash.replace(/^#\/?/, '');
+  const [name, ...rest] = h.split('/');
+  if (!name) return { name:'home' };
+  if (name === 'zoeken') return { name:'zoeken', q: decodeURIComponent(rest.join('/') || '') };
+  if (name === 'lijst') return { name:'lijst', id: rest[0] };
+  if (name === 'leuk') return { name:'liked' };
+  if (name === 'bibliotheek') return { name:'bibliotheek' };
+  if (name === 'genre') return { name:'genre', g: decodeURIComponent(rest.join('/')) };
+  return { name:'home' };
+}
+const GENRES = [
+  ['Top 40 NL','#e13300','🔥','top 40 nederland hits'], ['Nederlandstalig','#e8115b','🇳🇱','nederlandstalige hits'],
+  ['Pop','#148a08','🎤','pop hits 2026'], ['Hiphop','#bc5900','🎧','hip hop hits'],
+  ['Dance','#8d67ab','💃','dance hits'], ['Rock','#e91429','🎸','classic rock songs'],
+  ['Jaren 80','#1e3264','📼','80s hits'], ['Jaren 90','#27856a','💿','90s hits'],
+  ['Chill','#477d95','🌿','chill songs'], ['Focus','#503750','🧠','lofi focus music'],
+  ['Feest','#dc148c','🎉','party hits'], ['Klassiek','#7d4b32','🎻','classical music masterpieces'],
+  ['Jazz','#0d73ec','🎷','jazz classics'], ['Workout','#777777','💪','workout songs'],
+];
+function greeting(){ const h = new Date().getHours(); return h < 6 ? 'Goedenacht' : h < 12 ? 'Goedemorgen' : h < 18 ? 'Goedemiddag' : 'Goedenavond'; }
+
+function render(){
+  closeMenu();
+  const r = route(), main = $('#main');
+  document.querySelectorAll('[data-nav]').forEach(a => a.classList.toggle('active',
+    a.dataset.nav === (r.name === 'home' ? 'home' : r.name === 'zoeken' || r.name === 'genre' ? 'zoeken' : ['bibliotheek','lijst','liked'].includes(r.name) ? 'bibliotheek' : '')));
+  renderSide();
+  main.scrollTop = 0;
+  if (r.name === 'home') return renderHome(main);
+  if (r.name === 'zoeken') return renderSearch(main, r.q);
+  if (r.name === 'genre') return renderGenre(main, r.g);
+  if (r.name === 'bibliotheek') return renderLibrary(main);
+  if (r.name === 'liked') return renderCollection(main, { kind:'Afspeellijst', name:'Leuke nummers', cover:likedCover, tracks:likes, ctx:'liked', hero:'#5a2a6e' });
+  if (r.name === 'lijst'){
+    const pl = playlists.find(p => p.id === r.id);
+    if (!pl){ main.innerHTML = '<div class="main-inner"><div class="empty"><div class="big">Afspeellijst niet gevonden</div></div></div>'; return; }
+    return renderCollection(main, { kind:'Afspeellijst', name:pl.name, cover:plCover(pl), tracks:pl.tracks, ctx:'pl:'+pl.id, plId:pl.id, hero:'#3d3550' });
+  }
+}
+
+function card(t, key, i){
+  return `<button class="card" onclick="playFrom('${key}',${i})" oncontextmenu="menuFrom(event,'${key}',${i})">
+    <div class="img"><img src="${thumb(t.id)}" alt="" loading="lazy"><span class="fab">${I.play}</span></div>
+    <div class="t">${esc(t.title)}</div><div class="s">${esc(t.artist)}</div></button>`;
+}
+
+function renderHome(main){
+  const quick = [
+    `<a href="#/leuk">${likedCover}<span>Leuke nummers</span></a>`,
+    ...playlists.slice(0,7).map(p => `<a href="#/lijst/${p.id}">${plCover(p)}<span>${esc(p.name)}</span></a>`),
+  ];
+  lists.recent = { tracks: recent, ctx:'recent' };
+  main.innerHTML = `<div class="main-inner">
+    <h1 class="greet">${greeting()}</h1>
+    <div class="quick">${quick.join('')}</div>
+    ${recent.length ? `<h2>Onlangs afgespeeld</h2><div class="cards">${recent.slice(0,12).map((t,i) => card(t,'recent',i)).join('')}</div>` : ''}
+    <h2>Ontdek</h2><div class="chips">${GENRES.slice(0,8).map(chip).join('')}</div>
+    ${!recent.length ? `<div class="empty" style="margin-top:20px"><div class="big">Welkom bij Draaitafel</div>Zoek een artiest of nummer — alles komt van YouTube.<br><br><a class="btn" href="#/zoeken">${I.search.replace('<svg','<svg width="18" height="18"')} Zoeken</a></div>` : ''}
+  </div>`;
+}
+const chip = ([name, color, emoji]) => `<a class="chip" style="background:${color}" href="#/genre/${encodeURIComponent(name)}">${esc(name)}<span>${emoji}</span></a>`;
+
+let searchTimer = null, searchSeq = 0;
+function renderSearch(main, q){
+  main.innerHTML = `<div class="main-inner">
+    <div class="searchbox"><label>${I.search}<input id="q" type="search" placeholder="Wat wil je horen? (of plak een YouTube-link)" autocomplete="off" enterkeyhint="search"></label></div>
+    <div id="sres"></div></div>`;
+  const inp = $('#q'); inp.value = q || '';
+  inp.addEventListener('input', () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => { history.replaceState(null, '', '#/zoeken/' + encodeURIComponent(inp.value)); doSearch(inp.value); }, 350);
+  });
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter'){ clearTimeout(searchTimer); inp.blur(); history.replaceState(null,'','#/zoeken/'+encodeURIComponent(inp.value)); doSearch(inp.value); } });
+  if (!q && innerWidth > 720) inp.focus();
+  doSearch(q || '');
+}
+async function doSearch(q){
+  const el = $('#sres'); if (!el) return;
+  const seq = ++searchSeq;
+  if (!q.trim()){ el.innerHTML = `<h2>Alles doorbladeren</h2><div class="chips">${GENRES.map(chip).join('')}</div>`; return; }
+  el.innerHTML = '<div class="spinner"></div>';
+  try{
+    const res = await search(q);
+    if (seq !== searchSeq) return;
+    if (!res.length){ el.innerHTML = `<div class="empty"><div class="big">Geen resultaten voor “${esc(q)}”</div>Probeer andere woorden.</div>`; return; }
+    const top = res[0];
+    el.innerHTML = `<div style="display:grid;grid-template-columns:minmax(0,1fr);gap:8px">
+      <h2 style="margin-top:6px">Beste resultaat</h2>
+      <button class="card" style="display:flex;gap:18px;align-items:center;background:var(--panel2);padding:18px" onclick="playFrom('sres',0)">
+        <img src="${thumb(top.id)}" style="width:110px;height:110px;border-radius:8px;object-fit:cover;flex:none" alt="">
+        <div style="min-width:0"><div class="t" style="font-size:24px;letter-spacing:-.4px">${esc(top.title)}</div><div class="s" style="font-size:14px">Nummer · ${esc(top.artist)}</div></div>
+      </button>
+      <h2>Nummers</h2>
+      ${trackTable('sres', res, { ctx: 'search:' + q, header:false })}
+    </div>`;
+    markPlaying();
+  }catch(e){
+    if (seq !== searchSeq) return;
+    el.innerHTML = `<div class="empty"><div class="big">Zoeken lukt nu niet</div>${esc(e.message)}</div>`;
+  }
+}
+async function renderGenre(main, g){
+  const G = GENRES.find(x => x[0] === g) || [g, '#444', '🎵', g];
+  main.innerHTML = `<div class="hero" style="--hero:${G[1]}"><div class="cov" style="background:${G[1]};display:grid;place-items:center;font-size:90px">${G[2]}</div>
+    <div><div class="kind">Genre</div><h1>${esc(G[0])}</h1><div class="meta">Van YouTube</div></div></div>
+    <div class="actions"><button class="bigplay" id="gplay" title="Afspelen">${I.play}</button></div>
+    <div class="main-inner" style="padding-top:0" id="gres"><div class="spinner"></div></div>`;
+  try{
+    const res = await search(G[3]);
+    if (route().g !== g) return;
+    $('#gres').innerHTML = trackTable('genre', res, { ctx:'genre:' + g });
+    const bp = $('#gplay'); bp.dataset.ctx = 'genre:' + g; bp.onclick = () => playCtx('genre:' + g, res);
+    updatePlayUI(); markPlaying();
+  }catch(e){ $('#gres').innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+}
+function renderCollection(main, c){
+  const total = c.tracks.reduce((a, t) => a + (t.seconds || 0), 0);
+  const mins = Math.round(total / 60);
+  main.innerHTML = `<div class="hero" style="--hero:${c.hero}">${c.cover.replace('class="cov"','class="cov"')}
+    <div style="min-width:0"><div class="kind">${c.kind}</div><h1>${esc(c.name)}</h1>
+    <div class="meta">${c.tracks.length} ${c.tracks.length === 1 ? 'nummer' : 'nummers'}${mins ? ` · ${mins >= 60 ? Math.floor(mins/60)+' u '+(mins%60)+' min' : mins+' min'}` : ''}</div></div></div>
+    <div class="actions">
+      ${c.tracks.length ? `<button class="bigplay" data-ctx="${esc(c.ctx)}" onclick="playCtx('${c.ctx}', lists.coll.tracks)" title="Afspelen">${I.play}</button>` : ''}
+      ${c.tracks.length ? `<button class="iconbtn ${shuffle?'on':''}" title="Shuffle" onclick="toggleShuffle();this.classList.toggle('on',shuffle)">${I.shuffle}</button>` : ''}
+      ${c.plId ? `<button class="iconbtn" title="Meer" onclick="plMenu(event,'${c.plId}')">${I.more}</button>` : ''}
+    </div>
+    <div class="main-inner" style="padding-top:0">
+      ${c.tracks.length ? trackTable('coll', c.tracks, { ctx:c.ctx, plId:c.plId }) :
+        `<div class="empty"><div class="big">${c.plId ? 'Laten we iets zoeken voor je afspeellijst' : 'Nummers die je leuk vindt, verschijnen hier'}</div>
+        ${c.plId ? 'Zoek een nummer en kies <b>⋯ → Toevoegen aan afspeellijst</b>.' : 'Tik op het hartje bij een nummer om het op te slaan.'}<br><br><a class="btn" href="#/zoeken">Nummers zoeken</a></div>`}
+    </div>`;
+  updatePlayUI(); markPlaying();
+}
+function plMenu(ev, id){
+  ev.stopPropagation();
+  const r = ev.currentTarget.getBoundingClientRect();
+  openMenu(r.left, r.bottom + 4, [
+    { text:'Aan wachtrij toevoegen', fn:() => { const pl = playlists.find(p => p.id === id); pl.tracks.forEach(t => addToQueue(t)); } },
+    { text:'Naam wijzigen', fn:() => renamePlaylist(id) },
+    { text:'Afspeellijst verwijderen', fn:() => deletePlaylist(id) },
+  ]);
+}
+function renderLibrary(main){
+  main.innerHTML = `<div class="main-inner">
+    <div style="display:flex;justify-content:space-between;align-items:center"><h2 style="margin:4px 0 16px">Jouw bibliotheek</h2>
+    <button class="btn ghost" onclick="newPlaylist()">+ Afspeellijst</button></div>
+    <div class="cards">
+      <a class="card" href="#/leuk"><div class="img">${likedCover.replace('class="cov"','style="width:100%;height:100%"')}</div><div class="t">Leuke nummers</div><div class="s">${likes.length} nummers</div></a>
+      ${playlists.map(p => `<a class="card" href="#/lijst/${p.id}"><div class="img">${plCover(p).replace('class="cov"','style="width:100%;height:100%;object-fit:cover"')}</div><div class="t">${esc(p.name)}</div><div class="s">${p.tracks.length} nummers</div></a>`).join('')}
+    </div>
+    <div style="margin-top:30px;display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn ghost" onclick="exportData()">Exporteren (back-up)</button>
+      <label class="btn ghost" style="cursor:pointer">Importeren<input type="file" accept="application/json" hidden onchange="importData(this.files[0])"></label>
+    </div>
+    <p style="color:var(--dim);font-size:13px;margin-top:10px">Je bibliotheek wordt in deze browser bewaard. Met exporteren/importeren zet je hem over naar een ander apparaat.</p>
+  </div>`;
+}
+function renderSide(){
+  const r = route();
+  $('#sidePl').innerHTML = `<a class="pl-item ${r.name==='liked'?'active':''}" href="#/leuk">${likedCover}<div style="min-width:0"><div class="t">Leuke nummers</div><div class="s">${likes.length} nummers</div></div></a>` +
+    playlists.map(p => `<a class="pl-item ${r.id===p.id?'active':''}" href="#/lijst/${p.id}">${plCover(p)}<div style="min-width:0"><div class="t">${esc(p.name)}</div><div class="s">Afspeellijst · ${p.tracks.length}</div></div></a>`).join('');
+}
+
+/* back-up */
+function exportData(){
+  const blob = new Blob([JSON.stringify({ app:'draaitafel', v:1, likes, playlists }, null, 1)], { type:'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'draaitafel-backup.json'; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+async function importData(file){
+  if (!file) return;
+  try{
+    const d = JSON.parse(await file.text());
+    if (d.app !== 'draaitafel') throw 0;
+    const ids = new Set(likes.map(t => t.id));
+    likes = [...likes, ...(d.likes || []).filter(t => !ids.has(t.id))];
+    const pids = new Set(playlists.map(p => p.id));
+    playlists = [...playlists, ...(d.playlists || []).filter(p => !pids.has(p.id))];
+    saveAll(); render(); toast('Bibliotheek geïmporteerd');
+  }catch{ toast('Dit is geen geldige back-up'); }
+}
+
+/* sneltoetsen */
+document.addEventListener('keydown', e => {
+  if (e.target.matches('input,textarea')) return;
+  if (e.code === 'Space'){ e.preventDefault(); togglePlay(); }
+  else if (e.key === 'ArrowRight' && e.shiftKey) next(true);
+  else if (e.key === 'ArrowLeft' && e.shiftKey) prev();
+  else if (e.key === '/'){ e.preventDefault(); location.hash = '#/zoeken'; }
+});
+
+addEventListener('hashchange', render);
+render(); updateNowUI(); updatePlayUI();
+if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(()=>{});
+</script>
+</body>
+</html>
